@@ -4,11 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flashcard App with Firebase</title>
-    
-    <!-- PWA Manifest Link -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#4f46e5"/>
-
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter -->
@@ -17,9 +12,56 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.3.2/papaparse.min.js"></script>
+    <!-- SheetJS for Excel (.xlsx/.xls) parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
+        }
+        /* Fixed footer-style Start Studying button: centered and full-width matching container */
+        .fixed-start-session {
+            position: fixed;
+            bottom: 0; /* flush to bottom edge */
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            padding: 0; /* no horizontal padding so button can reach edges */
+            z-index: 60; /* sit on top of other content */
+            pointer-events: auto;
+        }
+
+        /* The button fills the container width but respects a max-width to match the app container */
+        .fixed-start-session .start-btn {
+            width: 100vw; /* full viewport width */
+            max-width: none;
+            border-radius: 0; /* flush edges */
+            padding: 1rem 0; /* vertical padding, full-width button */
+            font-size: 1rem;
+            font-weight: 700;
+            margin: 0; /* ensure no gaps */
+        }
+
+        /* Theme-aware colors: match the card container while remaining visible against page background */
+        .fixed-start-session .start-btn {
+            /* light theme: match card front (white) with dark text and subtle border/shadow to stand out */
+            background-color: #ffffff;
+            color: #0f172a; /* dark text */
+            border: 1px solid rgba(15, 23, 42, 0.06);
+            box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+        }
+        .dark .fixed-start-session .start-btn {
+            /* dark theme: match dark card surface but ensure contrast via border and slightly lighter text */
+            background-color: #1f2937; /* gray-800 */
+            color: #e5e7eb;
+            border: 1px solid rgba(255,255,255,0.04);
+            box-shadow: 0 6px 18px rgba(2,6,23,0.45);
+        }
+        .fixed-start-session .start-btn:hover {
+            transform: translateY(-1px) scale(1.01);
+            filter: none;
         }
         /* Custom styles for the card flip animation */
         .card-inner {
@@ -115,14 +157,23 @@
                 <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mb-6">
                     <h3 class="font-semibold text-lg mb-2">Add a New Card</h3>
                     <div class="flex flex-col md:flex-row gap-2">
-                        <input type="text" id="new-card-front" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg" placeholder="Front (Question)...">
-                        <input type="text" id="new-card-back" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg" placeholder="Back (Answer)...">
+                        <textarea id="new-card-front" rows="3" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg" placeholder="Front (Question)..."></textarea>
+                        <textarea id="new-card-back" rows="3" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg" placeholder="Back (Answer)..."></textarea>
                         <button id="add-card-btn" class="bg-green-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-green-700">Add Card</button>
+                    </div>
+                        <div class="mt-3 relative">
+                            <input type="text" id="search-input" class="w-full p-3 pl-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg" placeholder="Search cards...">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                    <div class="mt-4 flex gap-2 justify-end">
+                        <input type="file" id="import-csv-input" class="hidden" accept=".csv,.xlsx,.xls">
+                        <button id="import-cards-btn" class="text-sm bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-600"><i class="fas fa-upload mr-2"></i>Import (CSV)</button>
+                        <button id="export-cards-btn" class="text-sm bg-gray-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-download mr-2"></i>Export (CSV)</button>
                     </div>
                 </div>
                 
-                <div id="start-session-container" class="text-center my-8">
-                    <button id="start-session-btn" class="bg-green-500 text-white font-bold py-4 px-8 rounded-lg text-xl hover:bg-green-600 transition-transform transform hover:scale-105 shadow-lg">
+                <div id="start-session-container" class="text-center my-0 fixed-start-session">
+                    <button id="start-session-btn" class="start-btn transition-transform transform hover:scale-105 shadow-lg">
                         Start Studying <i class="fas fa-rocket ml-2"></i>
                     </button>
                 </div>
@@ -145,11 +196,8 @@
                 </button>
             </div>
             <div id="study-session-view">
-                 <div class="flex flex-col sm:flex-row gap-4 mb-6">
-                    <div class="relative flex-grow">
-                        <input type="text" id="search-input" class="w-full p-3 pl-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg" placeholder="Search cards...">
-                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    </div>
+                <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                    <div class="flex-grow"></div>
                     <button id="shuffle-btn" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
                         <i class="fas fa-random mr-2"></i> Shuffle Cards
                     </button>
@@ -224,14 +272,14 @@
         <div id="edit-card-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
             <div class="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform scale-95">
                 <h3 class="text-xl font-semibold mb-4">Edit Card</h3>
-                <div class="space-y-4">
+                    <div class="space-y-4">
                     <div>
                         <label for="edit-card-front" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Front</label>
-                        <input type="text" id="edit-card-front" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3">
+                        <textarea id="edit-card-front" rows="3" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3"></textarea>
                     </div>
                     <div>
                         <label for="edit-card-back" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Back</label>
-                        <input type="text" id="edit-card-back" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3">
+                        <textarea id="edit-card-back" rows="3" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3"></textarea>
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
@@ -478,6 +526,22 @@
             const themeToggle = document.getElementById('theme-toggle');
             const lightIcon = document.getElementById('theme-toggle-light-icon');
             const darkIcon = document.getElementById('theme-toggle-dark-icon');
+            const importCardsBtn = document.getElementById('import-cards-btn');
+            const exportCardsBtn = document.getElementById('export-cards-btn');
+            const importCsvInput = document.getElementById('import-csv-input');
+
+            // Start session button handler (restore functionality if missing)
+            startSessionBtn.addEventListener('click', () => {
+                if (!currentCategoryName || !currentDeckName) {
+                    alert('Please select a deck before starting a study session.');
+                    return;
+                }
+                updateDeckLastStudied(currentCategoryName, currentDeckName);
+                mainContent.classList.add('hidden');
+                mainHeader.classList.add('hidden');
+                studyFocusView.classList.remove('hidden');
+                renderCard();
+            });
 
             // --- App State ---
             let currentCards = [];
@@ -607,7 +671,11 @@
 
             const renderCardList = (categoryName, deckName) => {
                 cardListContainer.innerHTML = '';
-                const cards = allCategories[categoryName]?.[deckName]?.cards || [];
+                // If we're currently viewing this deck and currentCards is set (e.g. search results), prefer that
+                const isViewingThisDeck = currentCategoryName === categoryName && currentDeckName === deckName;
+                const cards = (isViewingThisDeck && Array.isArray(currentCards) && currentCards.length >= 0)
+                    ? currentCards
+                    : (allCategories[categoryName]?.[deckName]?.cards || []);
                 const statusColors = {
                     again: 'bg-red-400',
                     good: 'bg-blue-400',
@@ -632,6 +700,15 @@
                         </div>
                     `;
                     cardListContainer.appendChild(cardItem);
+                });
+
+                // Attach handlers for status buttons (Again/Good/Easy) in study view
+                const statusBtns = document.querySelectorAll('.status-btn');
+                statusBtns.forEach(btn => {
+                    btn.removeEventListener('click', btn._statusHandler);
+                    const handler = () => handleStatusUpdate(btn.dataset.status);
+                    btn.addEventListener('click', handler);
+                    btn._statusHandler = handler;
                 });
 
                 // Render Stats
@@ -666,8 +743,17 @@
                     return;
                 }
                 const card = currentCards[currentCardIndex];
-                cardFrontText.textContent = card.front;
-                cardBackText.textContent = card.back;
+                // Preserve newlines entered in textareas: escape HTML then replace \n with <br>
+                const escapeHtml = (str) => String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+                const nl2br = (s) => escapeHtml(s).replace(/\r?\n/g, '<br>');
+
+                cardFrontText.innerHTML = nl2br(card.front || '');
+                cardBackText.innerHTML = nl2br(card.back || '');
             };
             
             const showCompletionMessage = () => {
@@ -765,14 +851,17 @@
             };
 
             const searchCards = (query) => {
-                const lowerCaseQuery = query.toLowerCase();
+                const lowerCaseQuery = String(query || '').toLowerCase();
                 currentCards = originalCards.filter(card => 
                     card.front.toLowerCase().includes(lowerCaseQuery) ||
                     card.back.toLowerCase().includes(lowerCaseQuery)
                 );
                 currentCardIndex = 0;
-                if (studyFocusView.style.display !== 'none') {
+                // If study focus is visible, update the flashcard; otherwise update the card list view
+                if (!studyFocusView.classList.contains('hidden')) {
                     renderCard();
+                } else {
+                    renderCardList(currentCategoryName, currentDeckName);
                 }
             };
 
@@ -858,32 +947,67 @@
                 }
             });
 
-            startSessionBtn.addEventListener('click', () => {
-                updateDeckLastStudied(currentCategoryName, currentDeckName);
-                mainContent.classList.add('hidden');
-                mainHeader.classList.add('hidden');
-                studyFocusView.classList.remove('hidden');
-                renderCard();
-            });
-            
-            exitFocusModeBtn.addEventListener('click', () => {
-                studyFocusView.classList.add('hidden');
-                mainContent.classList.remove('hidden');
-                mainHeader.classList.remove('hidden');
-                selectDeck(currentCategoryName, currentDeckName);
-            });
+            exportCardsBtn.addEventListener('click', () => {
+                if (!currentCategoryName || !currentDeckName) {
+                    alert('Please select a deck before exporting cards.');
+                    return;
+                }
+                const cards = allCategories[currentCategoryName]?.[currentDeckName]?.cards || [];
+                if (cards.length === 0) {
+                    alert('This deck has no cards to export.');
+                    return;
+                }
 
-            flashcardInner.addEventListener('click', (e) => {
-                if (!e.target.closest('button')) flipCard();
-            });
+                const rows = cards.map(c => ({ front: c.front, back: c.back, status: c.status || 'new' }));
 
-            statusButtons.forEach(button => {
-                button.addEventListener('click', () => handleStatusUpdate(button.dataset.status));
-            });
+                // Prefer exporting as XLSX if SheetJS is available
+                if (typeof XLSX !== 'undefined') {
+                    try {
+                        const ws = XLSX.utils.json_to_sheet(rows, { header: ['front', 'back', 'status'] });
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, 'Cards');
+                        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                        const blob = new Blob([wbout], { type: 'application/octet-stream' });
+                        const link = document.createElement('a');
+                        const url = URL.createObjectURL(blob);
+                        link.href = url;
+                        link.download = `${currentDeckName.replace(/[^a-z0-9_\-]/gi, '_')}_cards.xlsx`;
+                        link.style.visibility = 'hidden';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                        return;
+                    } catch (err) {
+                        console.error('XLSX export failed, falling back to CSV:', err);
+                        // fallback to CSV below
+                    }
+                }
 
-            shuffleBtn.addEventListener('click', shuffleCards);
-            restartDeckBtn.addEventListener('click', restartDeck);
-            searchInput.addEventListener('input', (e) => searchCards(e.target.value));
+                // CSV fallback (PapaParse or manual)
+                let csv = '';
+                if (typeof Papa !== 'undefined' && Papa.unparse) {
+                    csv = Papa.unparse(rows);
+                } else {
+                    // Fallback CSV generation if PapaParse isn't loaded
+                    const escapeCell = (v) => `"${String(v).replace(/"/g, '""')}"`;
+                    const header = ['front','back','status'];
+                    const lines = [header.join(',')].concat(rows.map(r => [escapeCell(r.front), escapeCell(r.back), escapeCell(r.status)].join(',')));
+                    csv = lines.join('\r\n');
+                }
+
+                // Add BOM to help Excel detect utf-8
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.href = url;
+                link.download = `${currentDeckName.replace(/[^a-z0-9_\-]/gi, '_')}_cards.csv`;
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            });
 
             generateExampleBtn.addEventListener('click', async () => {
                 if (currentCards.length === 0) return;
@@ -892,12 +1016,28 @@
                 genExampleText.textContent = 'Generating...';
                 generateExampleBtn.disabled = true;
                 const example = await generateExampleSentence(card.front, card.back);
-                exampleSentenceContainer.innerHTML = example.replace(/\n/g, '<br>');
+                exampleSentenceContainer.innerHTML = String(example).replace(/\n/g, '<br>');
                 exampleSentenceContainer.classList.remove('hidden');
                 genExampleSpinner.classList.add('hidden');
                 genExampleText.textContent = '✨ Generate Example';
                 generateExampleBtn.disabled = false;
             });
+
+            // Restore/ensure shuffle, exit focus, and search input listeners
+            if (shuffleBtn) shuffleBtn.addEventListener('click', shuffleCards);
+            if (exitFocusModeBtn) exitFocusModeBtn.addEventListener('click', () => {
+                studyFocusView.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                mainHeader.classList.remove('hidden');
+                selectDeck(currentCategoryName, currentDeckName);
+            });
+            if (searchInput) searchInput.addEventListener('input', (e) => searchCards(e.target.value));
+            // Flip card when clicking on the flashcard container (but not on control buttons)
+            if (flashcardInner) {
+                flashcardInner.addEventListener('click', (e) => {
+                    if (!e.target.closest('button')) flipCard();
+                });
+            }
 
             deleteDeckBtn.addEventListener('click', () => {
                 showConfirmationModal(`Are you sure you want to delete the deck "${currentDeckName}"?`, () => {
@@ -1003,6 +1143,172 @@
                 lightIcon.classList.remove('hidden');
                 darkIcon.classList.add('hidden');
             }
+            
+            // Import/Export Listeners
+            importCardsBtn.addEventListener('click', () => {
+                if (!currentCategoryName || !currentDeckName) {
+                    alert('Please select a deck before importing cards.');
+                    return;
+                }
+                importCsvInput.click();
+            });
+
+            exportCardsBtn.addEventListener('click', () => {
+                if (!currentCategoryName || !currentDeckName) {
+                    alert('Please select a deck before exporting cards.');
+                    return;
+                }
+                const cards = allCategories[currentCategoryName]?.[currentDeckName]?.cards || [];
+                if (cards.length === 0) {
+                    alert('This deck has no cards to export.');
+                    return;
+                }
+
+                const rows = cards.map(c => ({ front: c.front, back: c.back, status: c.status || 'new' }));
+                let csv = '';
+                if (typeof Papa !== 'undefined' && Papa.unparse) {
+                    csv = Papa.unparse(rows);
+                } else {
+                    // Fallback CSV generation if PapaParse isn't loaded
+                    const escapeCell = (v) => `"${String(v).replace(/"/g, '""')}"`;
+                    const header = ['front','back','status'];
+                    const lines = [header.join(',')].concat(rows.map(r => [escapeCell(r.front), escapeCell(r.back), escapeCell(r.status)].join(',')));
+                    csv = lines.join('\r\n');
+                }
+
+                // Add BOM to help Excel detect utf-8
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.href = url;
+                link.download = `${currentDeckName.replace(/[^a-z0-9_\-]/gi, '_')}_cards.csv`;
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            });
+
+            importCsvInput.addEventListener('change', (event) => {
+                if (!currentCategoryName || !currentDeckName) {
+                    alert('Please select a deck before importing cards.');
+                    event.target.value = '';
+                    return;
+                }
+
+                const file = event.target.files[0];
+                if (!file) return;
+
+                // Helper: parse using SheetJS for Excel, Papa for CSV, otherwise a minimal CSV parser
+                const parseFile = (f) => {
+                    const name = f.name || '';
+                    const lower = name.toLowerCase();
+
+                    const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls') || f.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || f.type === 'application/vnd.ms-excel';
+                    if (isExcel && typeof XLSX !== 'undefined') {
+                        return f.arrayBuffer().then(ab => {
+                            const workbook = XLSX.read(ab, { type: 'array' });
+                            const sheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[sheetName];
+
+                            // Read as arrays so we can detect whether the first row is headers
+                            const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                            if (!rows || rows.length === 0) return { data: [] };
+
+                            // Detect header row: if any cell in first row matches common header names
+                            const firstRow = rows[0].map(c => String(c).trim().toLowerCase());
+                            const headerCandidates = ['front','question','term','back','answer','definition','status'];
+                            const firstRowLooksLikeHeader = firstRow.some(cell => headerCandidates.includes(cell));
+
+                            if (firstRowLooksLikeHeader) {
+                                // Convert using the first row as header
+                                const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                                return { data: json };
+                            }
+
+                            // Otherwise treat rows as data (no header). Map columns: 0=front,1=back,2=status
+                            const data = rows.map(r => ({
+                                front: r[0] !== undefined ? String(r[0]).trim() : '',
+                                back: r[1] !== undefined ? String(r[1]).trim() : '',
+                                status: r[2] !== undefined ? String(r[2]).trim() : ''
+                            }));
+
+                            return { data };
+                        });
+                    }
+
+                    if (typeof Papa !== 'undefined' && Papa.parse) {
+                        return new Promise((resolve, reject) => {
+                            Papa.parse(f, {
+                                header: true,
+                                skipEmptyLines: true,
+                                complete: (results) => resolve(results),
+                                error: (err) => reject(err)
+                            });
+                        });
+                    }
+
+                    // Minimal CSV parse fallback (assumes comma-separated, first line header)
+                    return f.text().then(text => {
+                        const lines = text.split(/\r?\n/).filter(l => l.trim());
+                        if (lines.length === 0) return { data: [] };
+                        const headers = lines.shift().split(',').map(h => h.trim());
+                        const data = lines.map(line => {
+                            const cols = line.split(',');
+                            const obj = {};
+                            headers.forEach((h, i) => obj[h] = (cols[i] || '').trim());
+                            return obj;
+                        });
+                        return { data };
+                    });
+                };
+
+                (async () => {
+                    try {
+                        const results = await parseFile(file);
+                        const imported = results.data || [];
+                        if (imported.length === 0) {
+                            alert('No rows found in CSV.');
+                            return;
+                        }
+
+                        // Normalize keys (case-insensitive) and support common header names
+                        const normalizeRow = (row) => {
+                            const keys = Object.keys(row);
+                            const findKey = (candidates) => keys.find(k => candidates.some(c => new RegExp(`^${c}$`, 'i').test(k)));
+                            const frontKey = findKey(['front', 'question', 'term']) || keys[0];
+                            const backKey = findKey(['back', 'answer', 'definition']) || keys[1] || keys[0];
+                            return {
+                                front: row[frontKey] ? String(row[frontKey]).trim() : '',
+                                back: row[backKey] ? String(row[backKey]).trim() : ''
+                            };
+                        };
+
+                        const rowsToImport = imported.map(normalizeRow).filter(r => r.front && r.back);
+                        if (rowsToImport.length === 0) {
+                            alert('No valid rows found. Ensure the CSV has "front" and "back" columns.');
+                            return;
+                        }
+
+                        let success = 0;
+                        for (const r of rowsToImport) {
+                            try {
+                                await addCardToFirestore(currentCategoryName, currentDeckName, r.front, r.back);
+                                success++;
+                            } catch (err) {
+                                console.error('Failed to import row', r, err);
+                            }
+                        }
+
+                        alert(`${success} of ${rowsToImport.length} cards imported successfully!`);
+                    } catch (err) {
+                        console.error('Error parsing/importing CSV:', err);
+                        alert('Failed to parse or import CSV. Check console for details.');
+                    } finally {
+                        event.target.value = '';
+                    }
+                })();
+            });
 
             // --- INITIAL AUTHENTICATION & DATA LOAD ---
             setPersistence(auth, browserLocalPersistence)
