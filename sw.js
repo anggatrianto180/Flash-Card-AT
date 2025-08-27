@@ -19,10 +19,20 @@ self.addEventListener('install', event => {
         return cache.addAll(urlsToCache);
       })
   );
+  // Activate immediately
+  self.skipWaiting();
 });
 
 // Event listener untuk setiap permintaan (fetch) dari aplikasi
 self.addEventListener('fetch', event => {
+  // For navigation requests, return index.html (SPA fallback)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.match('/index.html').then(response => response || fetch('/index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
     // Coba cari respon dari cache terlebih dahulu
     caches.match(event.request)
@@ -36,4 +46,9 @@ self.addEventListener('fetch', event => {
       }
     )
   );
+});
+
+// Claim clients when activated
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
 });
