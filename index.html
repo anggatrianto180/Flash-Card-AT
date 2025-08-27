@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -42,13 +42,25 @@
              transition: transform 0.25s ease;
         }
     </style>
+    <script>
+        // Apply dark mode immediately from localStorage to prevent flashing
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+    </script>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
-    <div id="app" class="container mx-auto p-4 md:p-8 max-w-4xl">
-        <header id="main-header" class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-indigo-600">Flashcard Pro</h1>
-            <p class="text-gray-500 mt-2">Data publik untuk semua pengguna.</p>
+    <div id="app" class="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
+        <header id="main-header" class="text-center mb-8 relative">
+            <h1 class="text-4xl font-bold text-indigo-600 dark:text-indigo-400">Flashcard Pro</h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Public data for all users.</p>
+            <button id="theme-toggle" class="absolute top-0 right-0 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <i class="fas fa-sun" id="theme-toggle-light-icon"></i>
+                <i class="fas fa-moon hidden" id="theme-toggle-dark-icon"></i>
+            </button>
         </header>
 
         <!-- Main content area -->
@@ -56,8 +68,8 @@
             <!-- Category List View -->
             <div id="category-list-view">
                  <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-semibold">Pilih Kategori Anda</h2>
-                    <button id="show-add-category-modal-btn" class="bg-indigo-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-colors">
+                    <h2 class="text-2xl font-semibold">Select Your Category</h2>
+                    <button id="show-add-category-modal-btn" class="bg-indigo-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-110">
                         <i class="fas fa-plus fa-lg"></i>
                     </button>
                 </div>
@@ -70,10 +82,10 @@
             <div id="deck-list-view" class="hidden">
                  <div class="flex justify-between items-center mb-4">
                     <div>
-                        <button id="back-to-categories-btn" class="text-sm text-indigo-600 hover:underline mb-2"><i class="fas fa-arrow-left mr-1"></i> Kembali ke Kategori</button>
+                        <button id="back-to-categories-btn" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mb-2"><i class="fas fa-arrow-left mr-1"></i> Back to Categories</button>
                         <h2 id="category-title" class="text-2xl font-semibold"></h2>
                     </div>
-                    <button id="show-add-deck-modal-btn" class="bg-indigo-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-colors">
+                    <button id="show-add-deck-modal-btn" class="bg-indigo-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-110">
                         <i class="fas fa-plus fa-lg"></i>
                     </button>
                 </div>
@@ -84,35 +96,38 @@
 
             <!-- Flashcard Review View -->
             <div id="card-review-view" class="hidden">
-                <div class="flex justify-between items-center mb-4">
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
                     <div class="flex items-center gap-3">
                         <h2 id="deck-title" class="text-2xl font-semibold"></h2>
                         <button id="edit-deck-name-btn" class="text-gray-400 hover:text-indigo-600"><i class="fas fa-pencil-alt"></i></button>
                         <button id="delete-deck-btn" class="text-gray-400 hover:text-red-600"><i class="fas fa-trash-alt"></i></button>
                     </div>
-                    <button id="back-to-decks-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors text-sm">
-                        <i class="fas fa-chevron-left mr-2"></i> Kembali ke Dek
+                    <button id="back-to-decks-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
+                        <i class="fas fa-chevron-left mr-2"></i> Back to Decks
                     </button>
                 </div>
                 
-                <div class="bg-white p-4 rounded-xl shadow-md mb-6">
-                    <h3 class="font-semibold text-lg mb-2">Tambah Kartu Baru</h3>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mb-6">
+                    <h3 class="font-semibold text-lg mb-2">Add a New Card</h3>
                     <div class="flex flex-col md:flex-row gap-2">
-                        <input type="text" id="new-card-front" class="flex-grow p-2 border border-gray-300 rounded-lg" placeholder="Depan (Pertanyaan)...">
-                        <input type="text" id="new-card-back" class="flex-grow p-2 border border-gray-300 rounded-lg" placeholder="Belakang (Jawaban)...">
-                        <button id="add-card-btn" class="bg-green-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-green-700">Tambah Kartu</button>
+                        <input type="text" id="new-card-front" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg" placeholder="Front (Question)...">
+                        <input type="text" id="new-card-back" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg" placeholder="Back (Answer)...">
+                        <button id="add-card-btn" class="bg-green-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-green-700">Add Card</button>
                     </div>
                 </div>
                 
                 <div id="start-session-container" class="text-center my-8">
                     <button id="start-session-btn" class="bg-green-500 text-white font-bold py-4 px-8 rounded-lg text-xl hover:bg-green-600 transition-transform transform hover:scale-105 shadow-lg">
-                        Mulai Menghafal <i class="fas fa-rocket ml-2"></i>
+                        Start Studying <i class="fas fa-rocket ml-2"></i>
                     </button>
                 </div>
 
-                <div class="bg-white p-4 rounded-xl shadow-md mb-6">
-                    <h3 class="font-semibold text-lg mb-2">Daftar Kartu</h3>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mb-6">
+                    <h3 class="font-semibold text-lg mb-2">Card List</h3>
                     <div id="card-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                    <div id="deck-stats" class="mt-4 flex justify-around text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-t dark:border-gray-700">
+                        <!-- Stats will be injected here -->
+                    </div>
                 </div>
             </div>
         </main>
@@ -120,128 +135,128 @@
         <!-- Study Focus View -->
         <div id="study-focus-view" class="hidden">
             <div class="flex justify-end mb-4">
-                <button id="exit-focus-mode-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300">
-                    <i class="fas fa-times mr-2"></i> Keluar Mode Fokus
+                <button id="exit-focus-mode-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
+                    <i class="fas fa-times mr-2"></i> Exit Focus Mode
                 </button>
             </div>
             <div id="study-session-view">
                  <div class="flex flex-col sm:flex-row gap-4 mb-6">
                     <div class="relative flex-grow">
-                        <input type="text" id="search-input" class="w-full p-3 pl-10 border rounded-lg" placeholder="Cari kartu...">
+                        <input type="text" id="search-input" class="w-full p-3 pl-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg" placeholder="Search cards...">
                         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                     </div>
-                    <button id="shuffle-btn" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50">
-                        <i class="fas fa-random mr-2"></i> Acak Kartu
+                    <button id="shuffle-btn" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <i class="fas fa-random mr-2"></i> Shuffle Cards
                     </button>
                 </div>
 
                 <div id="card-progress-container" class="mb-4">
-                    <p id="card-progress-text" class="text-center text-gray-600 mb-1"></p>
-                    <div class="w-full bg-gray-200 rounded-full h-2.5">
-                        <div id="card-progress-bar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    <p id="card-progress-text" class="text-center text-gray-600 dark:text-gray-400 mb-1"></p>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                        <div id="card-progress-bar" class="bg-indigo-600 dark:bg-indigo-400 h-2.5 rounded-full" style="width: 0%"></div>
                     </div>
                 </div>
 
                 <div id="flashcard-container" class="perspective-1000 w-full h-80 mb-6">
                     <div id="flashcard-inner" class="card-inner relative w-full h-full">
-                        <div id="card-front" class="card-face bg-white rounded-xl shadow-lg flex items-center justify-center p-6 text-center">
+                        <div id="card-front" class="card-face bg-white dark:bg-gray-800 rounded-xl shadow-lg flex items-center justify-center p-6 text-center">
                             <p class="text-3xl font-medium"></p>
                         </div>
-                        <div id="card-back" class="card-back card-face bg-indigo-500 text-white rounded-xl shadow-lg flex flex-col items-center justify-center p-6 text-center">
+                        <div id="card-back" class="card-back card-face bg-indigo-500 dark:bg-indigo-600 text-white rounded-xl shadow-lg flex flex-col items-center justify-center p-6 text-center">
                             <p class="text-2xl mb-4"></p>
                             <button id="generate-example-btn" class="bg-white text-indigo-600 font-semibold px-4 py-2 rounded-lg hover:bg-gray-200">
-                                <span id="gen-example-text">✨ Buat Contoh Kalimat</span>
+                                <span id="gen-example-text">✨ Generate Example</span>
                                 <div id="gen-example-spinner" class="hidden animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-indigo-600 ml-2"></div>
                             </button>
-                            <div id="example-sentence-container" class="mt-4 text-left text-sm w-full bg-indigo-600 p-3 rounded-lg hidden"></div>
+                            <div id="example-sentence-container" class="mt-4 text-left text-sm w-full bg-indigo-600/80 p-3 rounded-lg hidden"></div>
                         </div>
                     </div>
                 </div>
 
                 <div id="action-buttons" class="hidden grid grid-cols-3 gap-4">
-                    <button data-status="again" class="status-btn bg-red-500 text-white py-4 rounded-lg font-semibold text-lg hover:bg-red-600">Lagi</button>
-                    <button data-status="good" class="status-btn bg-blue-500 text-white py-4 rounded-lg font-semibold text-lg hover:bg-blue-600">Bisa</button>
-                    <button data-status="easy" class="status-btn bg-green-500 text-white py-4 rounded-lg font-semibold text-lg hover:bg-green-600">Mudah</button>
+                    <button data-status="again" class="status-btn bg-red-500 text-white py-4 rounded-lg font-semibold text-lg hover:bg-red-600">Again</button>
+                    <button data-status="good" class="status-btn bg-blue-500 text-white py-4 rounded-lg font-semibold text-lg hover:bg-blue-600">Good</button>
+                    <button data-status="easy" class="status-btn bg-green-500 text-white py-4 rounded-lg font-semibold text-lg hover:bg-green-600">Easy</button>
                 </div>
                 
-                <div id="completion-message" class="hidden text-center bg-green-100 text-green-800 p-6 rounded-xl">
-                    <h3 class="text-2xl font-semibold">🎉 Selamat!</h3>
-                    <p class="mt-2">Anda telah menyelesaikan semua kartu di dek ini.</p>
-                    <button id="restart-deck-btn" class="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">Ulangi Dek</button>
+                <div id="completion-message" class="hidden text-center bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 p-6 rounded-xl">
+                    <h3 class="text-2xl font-semibold">🎉 Congratulations!</h3>
+                    <p class="mt-2">You have finished all cards in this deck.</p>
+                    <button id="restart-deck-btn" class="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">Restart Deck</button>
                 </div>
             </div>
         </div>
 
         <!-- Modals -->
         <div id="add-category-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
-            <div class="modal-content bg-white rounded-lg p-6 w-full max-w-md transform scale-95">
-                <h3 class="text-xl font-semibold mb-4">Buat Kategori Baru</h3>
+            <div class="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform scale-95">
+                <h3 class="text-xl font-semibold mb-4">Create New Category</h3>
                 <div>
-                    <label for="add-category-name-input" class="block text-sm font-medium text-gray-700">Nama Kategori</label>
-                    <input type="text" id="add-category-name-input" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                    <label for="add-category-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category Name</label>
+                    <input type="text" id="add-category-name-input" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3">
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button id="cancel-add-category-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Batal</button>
-                    <button id="save-add-category-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Simpan</button>
+                    <button id="cancel-add-category-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Cancel</button>
+                    <button id="save-add-category-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Save</button>
                 </div>
             </div>
         </div>
 
         <div id="add-deck-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
-            <div class="modal-content bg-white rounded-lg p-6 w-full max-w-md transform scale-95">
-                <h3 class="text-xl font-semibold mb-4">Buat Dek Baru</h3>
+            <div class="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform scale-95">
+                <h3 class="text-xl font-semibold mb-4">Create New Deck</h3>
                 <div>
-                    <label for="add-deck-name-input" class="block text-sm font-medium text-gray-700">Nama Dek</label>
-                    <input type="text" id="add-deck-name-input" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                    <label for="add-deck-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Deck Name</label>
+                    <input type="text" id="add-deck-name-input" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3">
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button id="cancel-add-deck-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Batal</button>
-                    <button id="save-add-deck-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Simpan</button>
+                    <button id="cancel-add-deck-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Cancel</button>
+                    <button id="save-add-deck-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Save</button>
                 </div>
             </div>
         </div>
 
         <div id="edit-card-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
-            <div class="modal-content bg-white rounded-lg p-6 w-full max-w-md transform scale-95">
-                <h3 class="text-xl font-semibold mb-4">Edit Kartu</h3>
+            <div class="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform scale-95">
+                <h3 class="text-xl font-semibold mb-4">Edit Card</h3>
                 <div class="space-y-4">
                     <div>
-                        <label for="edit-card-front" class="block text-sm font-medium text-gray-700">Depan</label>
-                        <input type="text" id="edit-card-front" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                        <label for="edit-card-front" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Front</label>
+                        <input type="text" id="edit-card-front" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3">
                     </div>
                     <div>
-                        <label for="edit-card-back" class="block text-sm font-medium text-gray-700">Belakang</label>
-                        <input type="text" id="edit-card-back" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                        <label for="edit-card-back" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Back</label>
+                        <input type="text" id="edit-card-back" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3">
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button id="cancel-edit-card-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Batal</button>
-                    <button id="save-edit-card-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Simpan</button>
+                    <button id="cancel-edit-card-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Cancel</button>
+                    <button id="save-edit-card-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Save</button>
                 </div>
             </div>
         </div>
 
         <div id="edit-deck-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
-            <div class="modal-content bg-white rounded-lg p-6 w-full max-w-md transform scale-95">
-                <h3 class="text-xl font-semibold mb-4">Edit Nama Dek</h3>
+            <div class="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform scale-95">
+                <h3 class="text-xl font-semibold mb-4">Edit Deck Name</h3>
                 <div>
-                    <label for="edit-deck-name-input" class="block text-sm font-medium text-gray-700">Nama Dek</label>
-                    <input type="text" id="edit-deck-name-input" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                    <label for="edit-deck-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Deck Name</label>
+                    <input type="text" id="edit-deck-name-input" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3">
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button id="cancel-edit-deck-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Batal</button>
-                    <button id="save-edit-deck-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Simpan</button>
+                    <button id="cancel-edit-deck-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Cancel</button>
+                    <button id="save-edit-deck-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Save</button>
                 </div>
             </div>
         </div>
         
         <div id="confirmation-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
-            <div class="modal-content bg-white rounded-lg p-6 w-full max-w-md transform scale-95">
-                <h3 class="text-xl font-semibold mb-4">Konfirmasi Hapus</h3>
-                <p id="confirmation-message" class="text-gray-600"></p>
+            <div class="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform scale-95">
+                <h3 class="text-xl font-semibold mb-4">Confirm Deletion</h3>
+                <p id="confirmation-message" class="text-gray-600 dark:text-gray-300"></p>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button id="cancel-confirmation-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Batal</button>
-                    <button id="confirm-delete-btn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Hapus</button>
+                    <button id="cancel-confirmation-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Cancel</button>
+                    <button id="confirm-delete-btn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Delete</button>
                 </div>
             </div>
         </div>
@@ -320,7 +335,7 @@
         async function updateDeckNameInFirestore(categoryName, oldName, newName) {
             if (!userIsAuthenticated || !oldName || !newName || oldName === newName) return;
             if (allCategories[categoryName][newName]) {
-                alert('Nama dek sudah ada di kategori ini.');
+                alert('A deck with this name already exists in this category.');
                 return;
             }
             try {
@@ -424,6 +439,7 @@
             const studySessionView = document.getElementById('study-session-view');
             const exitFocusModeBtn = document.getElementById('exit-focus-mode-btn');
             const cardListContainer = document.getElementById('card-list');
+            const deckStatsContainer = document.getElementById('deck-stats');
             const editDeckNameBtn = document.getElementById('edit-deck-name-btn');
             const deleteDeckBtn = document.getElementById('delete-deck-btn');
             const showAddCategoryModalBtn = document.getElementById('show-add-category-modal-btn');
@@ -454,6 +470,9 @@
             const confirmationMessage = document.getElementById('confirmation-message');
             const cancelConfirmationBtn = document.getElementById('cancel-confirmation-btn');
             const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            const themeToggle = document.getElementById('theme-toggle');
+            const lightIcon = document.getElementById('theme-toggle-light-icon');
+            const darkIcon = document.getElementById('theme-toggle-dark-icon');
 
             // --- App State ---
             let currentCards = [];
@@ -480,7 +499,7 @@
                     return result.candidates[0].content.parts[0].text;
                 } catch (error) {
                     console.error("Error generating example sentence:", error);
-                    return "Gagal membuat contoh kalimat.";
+                    return "Failed to generate example.";
                 }
             }
 
@@ -514,15 +533,12 @@
                     }
                     
                     if (!cardReviewView.classList.contains('hidden') && allCategories[currentCategoryName]?.[currentDeckName]) {
-                        const oldOriginalCards = originalCards;
                         originalCards = [...allCategories[currentCategoryName][currentDeckName].cards];
                         renderCardList(currentCategoryName, currentDeckName);
 
-                        // FIX: Only update currentCards if the session is not active to prevent resets
                         if (studyFocusView.classList.contains('hidden')) {
                             searchCards(searchInput.value);
                         } else {
-                            // If session is active, just update the base data without changing the current card
                             const currentSearch = searchInput.value.toLowerCase();
                             currentCards = originalCards.filter(card => 
                                 card.front.toLowerCase().includes(currentSearch) ||
@@ -538,18 +554,18 @@
                 categoryListContainer.innerHTML = '';
                 const sortedCategoryNames = Object.keys(allCategories).sort();
                 if (sortedCategoryNames.length === 0) {
-                    categoryListContainer.innerHTML = `<p class="text-gray-500 col-span-full text-center">Belum ada kategori. Klik tombol + untuk membuat.</p>`;
+                    categoryListContainer.innerHTML = `<p class="text-gray-500 dark:text-gray-400 col-span-full text-center">No categories yet. Click the + button to create one.</p>`;
                 }
                 sortedCategoryNames.forEach(categoryName => {
                     const categoryCard = document.createElement('div');
-                    categoryCard.className = 'bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow cursor-pointer relative';
+                    categoryCard.className = 'bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl dark:shadow-none dark:hover:bg-gray-700/50 transition-shadow cursor-pointer relative';
                     categoryCard.dataset.categoryName = categoryName;
                     categoryCard.innerHTML = `
                         <div class="absolute top-2 right-2 flex gap-2">
                             <button data-category-name-edit="${categoryName}" class="edit-category-btn text-gray-400 hover:text-indigo-600"><i class="fas fa-pencil-alt"></i></button>
                             <button data-category-name-delete="${categoryName}" class="delete-category-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash-alt"></i></button>
                         </div>
-                        <h3 class="text-xl font-semibold text-indigo-700 pointer-events-none">${categoryName}</h3>
+                        <h3 class="text-xl font-semibold text-indigo-700 dark:text-indigo-400 pointer-events-none">${categoryName}</h3>
                     `;
                     categoryListContainer.appendChild(categoryCard);
                 });
@@ -560,7 +576,7 @@
                 const decks = allCategories[categoryName] || {};
                 const sortedDeckNames = Object.keys(decks).sort();
                 if (sortedDeckNames.length === 0) {
-                    deckListContainer.innerHTML = `<p class="text-gray-500 col-span-full text-center">Belum ada dek di kategori ini.</p>`;
+                    deckListContainer.innerHTML = `<p class="text-gray-500 dark:text-gray-400 col-span-full text-center">No decks in this category yet.</p>`;
                 }
                 sortedDeckNames.forEach(deckName => {
                     const deckData = decks[deckName];
@@ -568,16 +584,16 @@
                     let lastStudiedHTML = '';
                     if (deckData.lastStudied) {
                         const date = deckData.lastStudied.toDate();
-                        const formattedDate = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-                        lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Terakhir dipelajari: ${formattedDate}</p>`;
+                        const formattedDate = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                        lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Last studied: ${formattedDate}</p>`;
                     }
 
                     const deckCard = document.createElement('div');
-                    deckCard.className = 'bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow cursor-pointer';
+                    deckCard.className = 'bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl dark:shadow-none dark:hover:bg-gray-700/50 transition-shadow cursor-pointer';
                     deckCard.dataset.deckName = deckName;
                     deckCard.innerHTML = `
-                        <h3 class="text-xl font-semibold text-indigo-700 pointer-events-none">${deckName}</h3>
-                        <p class="text-gray-500 mt-2 pointer-events-none">${cardCount} kartu</p>
+                        <h3 class="text-xl font-semibold text-indigo-700 dark:text-indigo-400 pointer-events-none">${deckName}</h3>
+                        <p class="text-gray-500 dark:text-gray-400 mt-2 pointer-events-none">${cardCount} cards</p>
                         ${lastStudiedHTML}
                     `;
                     deckListContainer.appendChild(deckCard);
@@ -594,11 +610,11 @@
                     new: 'bg-gray-400'
                 };
                 if (cards.length === 0) {
-                    cardListContainer.innerHTML = `<p class="text-gray-500 text-center">Belum ada kartu di dek ini.</p>`;
+                    cardListContainer.innerHTML = `<p class="text-gray-500 dark:text-gray-400 text-center">No cards in this deck yet.</p>`;
                 }
                 cards.forEach((card, index) => {
                     const cardItem = document.createElement('div');
-                    cardItem.className = 'flex justify-between items-center p-2 border-b';
+                    cardItem.className = 'flex justify-between items-center p-2 border-b dark:border-gray-700';
                     const statusColor = statusColors[card.status] || 'bg-gray-400';
                     cardItem.innerHTML = `
                         <div class="flex items-center gap-3">
@@ -612,6 +628,19 @@
                     `;
                     cardListContainer.appendChild(cardItem);
                 });
+
+                // Render Stats
+                const stats = { again: 0, good: 0, easy: 0, new: 0, total: cards.length };
+                cards.forEach(card => {
+                    stats[card.status || 'new']++;
+                });
+                deckStatsContainer.innerHTML = `
+                    <div><p class="text-2xl font-bold text-gray-700 dark:text-gray-300">${stats.total}</p><p class="text-sm text-gray-500 dark:text-gray-400">Total</p></div>
+                    <div><p class="text-2xl font-bold text-green-500">${stats.easy}</p><p class="text-sm text-gray-500 dark:text-gray-400">Easy</p></div>
+                    <div><p class="text-2xl font-bold text-blue-500">${stats.good}</p><p class="text-sm text-gray-500 dark:text-gray-400">Good</p></div>
+                    <div><p class="text-2xl font-bold text-red-500">${stats.again}</p><p class="text-sm text-gray-500 dark:text-gray-400">Again</p></div>
+                    <div><p class="text-2xl font-bold text-gray-500">${stats.new}</p><p class="text-sm text-gray-500 dark:text-gray-400">New</p></div>
+                `;
             };
 
             const renderCard = () => {
@@ -622,7 +651,7 @@
                 exampleSentenceContainer.classList.add('hidden');
                 exampleSentenceContainer.innerHTML = '';
                 if (currentCards.length === 0) {
-                    cardFrontText.textContent = "Dek ini kosong. Tambahkan kartu baru di atas.";
+                    cardFrontText.textContent = "This deck is empty. Add a new card above.";
                     cardBackText.textContent = "";
                     document.getElementById('flashcard-container').classList.remove('hidden');
                     return;
@@ -639,23 +668,23 @@
             const showCompletionMessage = () => {
                 completionMessage.classList.remove('hidden');
                 document.getElementById('flashcard-container').classList.add('hidden');
-                progressText.textContent = `Selesai! ${originalCards.length} dari ${originalCards.length} kartu.`;
+                progressText.textContent = `Finished! ${originalCards.length} of ${originalCards.length} cards.`;
             }
 
             const updateProgress = () => {
                 const total = originalCards.length;
                 const current = Math.min(currentCardIndex + 1, total);
                 if (total === 0) {
-                    progressText.textContent = "Tidak ada kartu di dek ini.";
+                    progressText.textContent = "No cards in this deck.";
                     progressBar.style.width = '0%';
                     return;
                 }
                 document.getElementById('flashcard-container').classList.remove('hidden');
                 if (currentCardIndex >= currentCards.length) {
-                     progressText.textContent = `Selesai! ${total} dari ${total} kartu.`;
+                     progressText.textContent = `Finished! ${total} of ${total} cards.`;
                      progressBar.style.width = `100%`;
                 } else {
-                    progressText.textContent = `Kartu ${current} dari ${total}`;
+                    progressText.textContent = `Card ${current} of ${total}`;
                     progressBar.style.width = `${(current / total) * 100}%`;
                 }
             };
@@ -708,14 +737,13 @@
                     updateCardStatusInFirestore(currentCategoryName, currentDeckName, originalIndex, status);
                 }
                 
-                // FIX: Use a timeout to prevent the next card's answer from flashing
                 if (flashcardInner.classList.contains('is-flipped')) {
                     flashcardInner.classList.remove('is-flipped');
                     actionButtons.classList.add('hidden');
                     setTimeout(() => {
                         currentCardIndex++;
                         renderCard();
-                    }, 300); // Half of the 0.6s transition
+                    }, 300); 
                 } else {
                     currentCardIndex++;
                     renderCard();
@@ -807,7 +835,7 @@
                 if (deleteBtn) {
                     e.stopPropagation(); // Prevent card click
                     const categoryName = deleteBtn.dataset.categoryNameDelete;
-                    showConfirmationModal(`Apakah Anda yakin ingin menghapus kategori "${categoryName}" beserta semua dek di dalamnya?`, () => {
+                    showConfirmationModal(`Are you sure you want to delete the category "${categoryName}" and all decks within it?`, () => {
                         deleteCategoryFromFirestore(categoryName);
                     });
                     return;
@@ -856,18 +884,18 @@
                 if (currentCards.length === 0) return;
                 const card = currentCards[currentCardIndex];
                 genExampleSpinner.classList.remove('hidden');
-                genExampleText.textContent = 'Membuat...';
+                genExampleText.textContent = 'Generating...';
                 generateExampleBtn.disabled = true;
                 const example = await generateExampleSentence(card.front, card.back);
                 exampleSentenceContainer.innerHTML = example.replace(/\n/g, '<br>');
                 exampleSentenceContainer.classList.remove('hidden');
                 genExampleSpinner.classList.add('hidden');
-                genExampleText.textContent = '✨ Buat Contoh Kalimat';
+                genExampleText.textContent = '✨ Generate Example';
                 generateExampleBtn.disabled = false;
             });
 
             deleteDeckBtn.addEventListener('click', () => {
-                showConfirmationModal(`Apakah Anda yakin ingin menghapus dek "${currentDeckName}"?`, () => {
+                showConfirmationModal(`Are you sure you want to delete the deck "${currentDeckName}"?`, () => {
                     deleteDeckFromFirestore(currentCategoryName, currentDeckName);
                 });
             });
@@ -892,7 +920,7 @@
                 if (deleteBtn) {
                     const cardIndex = parseInt(deleteBtn.dataset.cardIndex, 10);
                     const card = allCategories[currentCategoryName][currentDeckName].cards[cardIndex];
-                    showConfirmationModal(`Hapus kartu "${card.front}"?`, () => {
+                    showConfirmationModal(`Delete card "${card.front}"?`, () => {
                         deleteCardFromFirestore(currentCategoryName, currentDeckName, card);
                     });
                 }
@@ -904,7 +932,7 @@
                     addCategoryToFirestore(newName);
                     hideModal(addCategoryModal, addCategoryModalContent);
                 } else if (allCategories[newName]) {
-                    alert('Nama kategori sudah ada.');
+                    alert('A category with this name already exists.');
                 }
             });
             cancelAddCategoryBtn.addEventListener('click', () => hideModal(addCategoryModal, addCategoryModalContent));
@@ -915,7 +943,7 @@
                     addDeckToFirestore(currentCategoryName, newName);
                     hideModal(addDeckModal, addDeckModalContent);
                 } else if (allCategories[currentCategoryName] && allCategories[currentCategoryName][newName]) {
-                    alert('Nama dek sudah ada.');
+                    alert('A deck with this name already exists.');
                 }
             });
             cancelAddDeckBtn.addEventListener('click', () => hideModal(addDeckModal, addDeckModalContent));
@@ -948,6 +976,29 @@
             });
             cancelConfirmationBtn.addEventListener('click', () => hideModal(confirmationModal, confirmationModalContent));
             
+            // Dark Mode Toggle
+            themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                if (document.documentElement.classList.contains('dark')) {
+                    localStorage.setItem('theme', 'dark');
+                    lightIcon.classList.add('hidden');
+                    darkIcon.classList.remove('hidden');
+                } else {
+                    localStorage.setItem('theme', 'light');
+                    lightIcon.classList.remove('hidden');
+                    darkIcon.classList.add('hidden');
+                }
+            });
+
+            // Set initial icon for dark mode
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                lightIcon.classList.add('hidden');
+                darkIcon.classList.remove('hidden');
+            } else {
+                lightIcon.classList.remove('hidden');
+                darkIcon.classList.add('hidden');
+            }
+
             // --- INITIAL AUTHENTICATION & DATA LOAD ---
             setPersistence(auth, browserLocalPersistence)
                 .then(() => {
