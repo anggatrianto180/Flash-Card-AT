@@ -104,9 +104,8 @@
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
     <div id="app" class="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
-        <header id="main-header" class="text-center mb-8 relative">
-            <h1 class="text-4xl font-bold text-indigo-600 dark:text-indigo-400">Flashcard Pro</h1>
-            <p class="text-gray-500 dark:text-gray-400 mt-2">Public data for all users.</p>
+        <header id="main-header" class="text-left mb-8 relative">
+            <h3 class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">Flashcard AT</h3>
             <button id="theme-toggle" class="absolute top-0 right-0 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 <i class="fas fa-sun" id="theme-toggle-light-icon"></i>
                 <i class="fas fa-moon hidden" id="theme-toggle-dark-icon"></i>
@@ -158,20 +157,53 @@
                 </div>
                 
                 <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mb-6">
-                    <h3 class="font-semibold text-lg mb-2">Add a New Card</h3>
-                    <div class="flex flex-col md:flex-row gap-2">
-                        <textarea id="new-card-front" rows="3" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg" placeholder="Front (Question)..."></textarea>
-                        <textarea id="new-card-back" rows="3" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg" placeholder="Back (Answer)..."></textarea>
-                        <button id="add-card-btn" class="bg-green-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-green-700">Add Card</button>
+                    <h3 class="font-semibold text-lg mb-2">Cards</h3>
+                    <div class="flex items-center gap-2 mb-3">
+                        <button id="open-add-card-modal-btn" class="bg-green-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-green-700">+ Add Card</button>
+                        <div class="flex-1"></div>
                     </div>
-                        <div class="mt-3 relative">
-                            <input type="text" id="search-input" class="w-full p-3 pl-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg" placeholder="Search cards...">
-                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                        </div>
+                    <div class="mt-0 relative">
+                        <input type="text" id="search-input" class="w-full p-3 pl-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg" placeholder="Search cards...">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
                     <div class="mt-4 flex gap-2 justify-end">
                         <input type="file" id="import-csv-input" class="hidden" accept=".csv,.xlsx,.xls">
                         <button id="import-cards-btn" class="text-sm bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-600"><i class="fas fa-upload mr-2"></i>Import (CSV)</button>
                         <button id="export-cards-btn" class="text-sm bg-gray-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-download mr-2"></i>Export (CSV)</button>
+                    </div>
+                </div>
+
+                <!-- Add Card Modal -->
+                <div id="add-card-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
+                    <div class="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform scale-95">
+                        <h3 class="text-xl font-semibold mb-4">Add New Card</h3>
+                        <div>
+                            <label for="add-card-front" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Front</label>
+                            <textarea id="add-card-front" rows="3" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3" placeholder="Front (Question)..."></textarea>
+                        </div>
+                        <div class="mt-4">
+                            <label for="add-card-back" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Back</label>
+                            <textarea id="add-card-back" rows="3" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3" placeholder="Back (Answer)..."></textarea>
+                        </div>
+                        <div class="mt-6 flex justify-end gap-3">
+                            <button id="cancel-add-card-modal-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Cancel</button>
+                            <button id="save-add-card-modal-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Add</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit Category Modal -->
+                <div id="edit-category-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+                    <div class="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md transform scale-95">
+                        <h3 class="text-xl font-semibold mb-4">Edit Category Name</h3>
+                        <div>
+                            <label for="edit-category-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category Name</label>
+                            <input type="text" id="edit-category-name-input" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-md shadow-sm py-2 px-3">
+                        </div>
+                        <div class="mt-6 flex justify-end gap-3">
+                            <button id="cancel-edit-category-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Cancel</button>
+                            <button id="save-edit-category-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Save</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -238,7 +270,10 @@
                 <div id="completion-message" class="hidden text-center bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 p-6 rounded-xl">
                     <h3 class="text-2xl font-semibold">🎉 Congratulations!</h3>
                     <p class="mt-2">You have finished all cards in this deck.</p>
-                    <button id="restart-deck-btn" class="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">Restart Deck</button>
+                    <div class="mt-4 flex justify-center gap-3">
+                        <button id="restart-deck-btn" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">Restart Deck</button>
+                        <button id="back-to-cards-after-study-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-6 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">Back to Cards</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -351,7 +386,61 @@
             try {
                 const newCategoryRef = doc(collection(db, 'categories'), categoryName);
                 await setDoc(newCategoryRef, { name: categoryName });
+                await refreshCategoryFromFirestore(categoryName);
             } catch (error) { console.error("Error adding category: ", error); }
+        }
+
+        // Rename category by copying all decks to new category document then deleting old
+        async function updateCategoryNameInFirestore(oldName, newName) {
+            if (!userIsAuthenticated || !oldName || !newName || oldName === newName) return false;
+            // Prevent accidental overwrite
+            if (allCategories[newName]) {
+                alert('A category with that name already exists. Choose a different name.');
+                return false;
+            }
+            try {
+                // Create the new category document
+                const newCategoryRef = doc(collection(db, 'categories'), newName);
+                await setDoc(newCategoryRef, { name: newName });
+
+                // Copy decks from Firestore (safer than relying solely on in-memory state)
+                const decksRef = collection(db, 'categories', oldName, 'decks');
+                const deckSnapshot = await getDocs(decksRef);
+                const copyPromises = [];
+                deckSnapshot.forEach(deckDoc => {
+                    const deckId = deckDoc.id;
+                    const deckData = deckDoc.data();
+                    const newDeckRef = doc(collection(db, 'categories', newName, 'decks'), deckId);
+                    copyPromises.push(setDoc(newDeckRef, deckData));
+                });
+                await Promise.all(copyPromises);
+
+                // Delete old category and its decks
+                await deleteCategoryFromFirestore(oldName);
+
+                // Update local state and UI immediately for responsiveness
+                allCategories[newName] = allCategories[oldName] || {};
+                delete allCategories[oldName];
+                renderCategories();
+
+                // If user currently had the old category selected, switch to the new one
+                if (currentCategoryName === oldName) {
+                    currentCategoryName = newName;
+                    // Re-listen to decks for the new category
+                    listenToDecks(newName);
+                    // If we were viewing decks, render them
+                    if (!deckListView.classList.contains('hidden')) {
+                        renderDecks(newName);
+                    }
+                }
+
+                alert('Category renamed successfully.');
+                return true;
+            } catch (err) {
+                console.error('Failed to rename category:', err);
+                alert('Failed to rename category. See console for details.');
+                return false;
+            }
         }
 
         async function deleteCategoryFromFirestore(categoryName) {
@@ -367,6 +456,9 @@
 
                 const categoryRef = doc(collection(db, 'categories'), categoryName);
                 await deleteDoc(categoryRef);
+                // update local UI/state after delete
+                delete allCategories[categoryName];
+                renderCategories();
             } catch (error) {
                 console.error("Error deleting category and its decks: ", error);
             }
@@ -377,6 +469,7 @@
             try {
                 const newDeckRef = doc(collection(db, 'categories', categoryName, 'decks'), deckName);
                 await setDoc(newDeckRef, { name: deckName, cards: [], lastStudied: null });
+                await refreshCategoryFromFirestore(categoryName);
             } catch (error) { console.error("Error adding deck: ", error); }
         }
 
@@ -385,6 +478,7 @@
             try {
                 const deckRef = doc(collection(db, 'categories', categoryName, 'decks'), deckName);
                 await deleteDoc(deckRef);
+                await refreshCategoryFromFirestore(categoryName);
             } catch (error) { console.error("Error deleting deck: ", error); }
         }
         
@@ -401,6 +495,7 @@
                 
                 const oldDeckRef = doc(collection(db, 'categories', categoryName, 'decks'), oldName);
                 await deleteDoc(oldDeckRef);
+                await refreshCategoryFromFirestore(categoryName);
             } catch (error) { console.error("Error updating deck name: ", error); }
         }
 
@@ -409,6 +504,7 @@
             try {
                 const deckRef = doc(collection(db, 'categories', categoryName, 'decks'), deckName);
                 await updateDoc(deckRef, { cards: arrayRemove(cardToDelete) });
+                await refreshCategoryFromFirestore(categoryName);
             } catch(error) { console.error("Error deleting card: ", error); }
         }
 
@@ -418,6 +514,7 @@
                 const deckRef = doc(collection(db, 'categories', categoryName, 'decks'), deckName);
                 await updateDoc(deckRef, { cards: arrayRemove(oldCard) });
                 await updateDoc(deckRef, { cards: arrayUnion(newCard) });
+                await refreshCategoryFromFirestore(categoryName);
             } catch (error) { console.error("Error updating card: ", error); }
         }
 
@@ -428,6 +525,7 @@
                 await updateDoc(deckRef, {
                     cards: arrayUnion({ front, back, status: 'new' })
                 });
+                await refreshCategoryFromFirestore(categoryName);
             } catch (error) {
                 console.error("Error adding card: ", error);
             }
@@ -442,6 +540,7 @@
                     updatedCards[cardIndex].status = newStatus;
                     const deckRef = doc(collection(db, 'categories', categoryName, 'decks'), deckName);
                     await updateDoc(deckRef, { cards: updatedCards });
+                    await refreshCategoryFromFirestore(categoryName);
                 }
             } catch (error) {
                 console.error("Error updating card status:", error);
@@ -453,8 +552,35 @@
             try {
                 const deckRef = doc(collection(db, 'categories', categoryName, 'decks'), deckName);
                 await updateDoc(deckRef, { lastStudied: serverTimestamp() });
+                await refreshCategoryFromFirestore(categoryName);
             } catch (error) {
                 console.error("Error updating last studied time:", error);
+            }
+        }
+
+        // Refresh a specific category's decks/cards from Firestore and update UI immediately
+        async function refreshCategoryFromFirestore(categoryName) {
+            if (!categoryName || !userIsAuthenticated) return;
+            try {
+                const decksRef = collection(db, 'categories', categoryName, 'decks');
+                const snapshot = await getDocs(decksRef);
+                const decks = {};
+                snapshot.forEach(docSnap => {
+                    decks[docSnap.id] = docSnap.data();
+                });
+                allCategories[categoryName] = decks;
+                // Re-render UI
+                renderCategories();
+                if (!deckListView.classList.contains('hidden') && currentCategoryName === categoryName) {
+                    renderDecks(categoryName);
+                }
+                if (!cardReviewView.classList.contains('hidden') && currentCategoryName === categoryName && currentDeckName) {
+                    originalCards = [...(allCategories[categoryName]?.[currentDeckName]?.cards || [])];
+                    currentCards = [...originalCards];
+                    renderCardList(categoryName, currentDeckName);
+                }
+            } catch (err) {
+                console.error('Error refreshing category from Firestore:', err);
             }
         }
 
@@ -486,9 +612,19 @@
             const genExampleText = document.getElementById('gen-example-text');
             const genExampleSpinner = document.getElementById('gen-example-spinner');
             const exampleSentenceContainer = document.getElementById('example-sentence-container');
-            const newCardFrontInput = document.getElementById('new-card-front');
-            const newCardBackInput = document.getElementById('new-card-back');
-            const addCardBtn = document.getElementById('add-card-btn');
+            // (legacy inline add-card elements removed) new card flow now uses modal inputs below
+            const openAddCardModalBtn = document.getElementById('open-add-card-modal-btn');
+            const addCardModal = document.getElementById('add-card-modal');
+            const addCardModalContent = document.querySelector('#add-card-modal .modal-content');
+            const cancelAddCardModalBtn = document.getElementById('cancel-add-card-modal-btn');
+            const saveAddCardModalBtn = document.getElementById('save-add-card-modal-btn');
+            const addCardFrontInput = document.getElementById('add-card-front');
+            const addCardBackInput = document.getElementById('add-card-back');
+            const editCategoryModal = document.getElementById('edit-category-modal');
+            const editCategoryModalContent = document.querySelector('#edit-category-modal .modal-content');
+            const cancelEditCategoryBtn = document.getElementById('cancel-edit-category-btn');
+            const saveEditCategoryBtn = document.getElementById('save-edit-category-btn');
+            const editCategoryNameInput = document.getElementById('edit-category-name-input');
             const startSessionContainer = document.getElementById('start-session-container');
             const startSessionBtn = document.getElementById('start-session-btn');
             const studyFocusView = document.getElementById('study-focus-view');
@@ -640,6 +776,18 @@
                         <h3 class="text-xl font-semibold text-indigo-700 dark:text-indigo-400 pointer-events-none">${categoryName}</h3>
                     `;
                     categoryListContainer.appendChild(categoryCard);
+                    // Attach direct listener to the edit button so it reliably opens the edit modal
+                    const editBtnElem = categoryCard.querySelector('.edit-category-btn');
+                    if (editBtnElem) {
+                        editBtnElem.addEventListener('click', (ev) => {
+                            ev.stopPropagation();
+                            const catName = editBtnElem.dataset.categoryNameEdit;
+                            if (!catName) return;
+                            editCategoryNameInput.value = catName;
+                            showModal(editCategoryModal, editCategoryModalContent);
+                            editCategoryModal._originalName = catName;
+                        });
+                    }
                 });
             };
 
@@ -692,10 +840,17 @@
                     const cardItem = document.createElement('div');
                     cardItem.className = 'flex justify-between items-center p-2 border-b dark:border-gray-700';
                     const statusColor = statusColors[card.status] || 'bg-gray-400';
+                    const escapeHtml = (s) => String(s || '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                    const nl2br = (s) => escapeHtml(s).replace(/\r?\n/g, '<br>');
                     cardItem.innerHTML = `
                         <div class="flex items-center gap-3">
                            <span class="w-3 h-3 rounded-full ${statusColor}"></span>
-                           <span>${card.front}</span>
+                           <span>${nl2br(card.front)}</span>
                         </div>
                         <div class="flex gap-2">
                             <button data-card-index="${index}" class="edit-card-btn text-gray-400 hover:text-indigo-600"><i class="fas fa-pencil-alt"></i></button>
@@ -763,6 +918,31 @@
                 completionMessage.classList.remove('hidden');
                 document.getElementById('flashcard-container').classList.add('hidden');
                 progressText.textContent = `Finished! ${originalCards.length} of ${originalCards.length} cards.`;
+                // Offer user to go back to the card list automatically after short delay
+                const backBtn = document.getElementById('back-to-cards-after-study-btn');
+                if (backBtn) {
+                    // ensure handler exists
+                    backBtn.addEventListener('click', exitStudyAndReturnToCards);
+                }
+                // Auto-return after 1.5s for faster flow
+                setTimeout(() => {
+                    exitStudyAndReturnToCards();
+                }, 1500);
+            }
+
+            function exitStudyAndReturnToCards() {
+                // hide study views
+                studyFocusView.classList.add('hidden');
+                studySessionView.classList.add('hidden');
+                // show card list view
+                mainContent.classList.remove('hidden');
+                mainHeader.classList.remove('hidden');
+                // navigate to the current deck's card list
+                if (currentCategoryName && currentDeckName) {
+                    cardReviewView.classList.remove('hidden');
+                    deckListView.classList.add('hidden');
+                    renderCardList(currentCategoryName, currentDeckName);
+                }
             }
 
             const updateProgress = () => {
@@ -902,13 +1082,53 @@
                 showModal(addDeckModal, addDeckModalContent);
             });
 
-            addCardBtn.addEventListener('click', () => {
-                const front = newCardFrontInput.value.trim();
-                const back = newCardBackInput.value.trim();
-                if (front && back && currentDeckName) {
-                    addCardToFirestore(currentCategoryName, currentDeckName, front, back);
-                    newCardFrontInput.value = '';
-                    newCardBackInput.value = '';
+            // legacy inline add-card handler removed; use modal-based add below
+
+            // Open Add Card Modal
+            if (openAddCardModalBtn) openAddCardModalBtn.addEventListener('click', () => {
+                addCardFrontInput.value = '';
+                addCardBackInput.value = '';
+                showModal(addCardModal, addCardModalContent);
+            });
+            if (cancelAddCardModalBtn) cancelAddCardModalBtn.addEventListener('click', () => hideModal(addCardModal, addCardModalContent));
+            if (saveAddCardModalBtn) saveAddCardModalBtn.addEventListener('click', async () => {
+                const front = addCardFrontInput.value.trim();
+                const back = addCardBackInput.value.trim();
+                if (!front || !back || !currentDeckName) {
+                    alert('Please enter both front and back and select a deck.');
+                    return;
+                }
+                await addCardToFirestore(currentCategoryName, currentDeckName, front, back);
+                hideModal(addCardModal, addCardModalContent);
+            });
+
+            // edit-category handled by per-button listeners attached in renderCategories
+
+            if (cancelEditCategoryBtn) cancelEditCategoryBtn.addEventListener('click', () => hideModal(editCategoryModal, editCategoryModalContent));
+            if (saveEditCategoryBtn) saveEditCategoryBtn.addEventListener('click', async () => {
+                const newName = editCategoryNameInput.value.trim();
+                const original = editCategoryModal._originalName;
+                if (!newName || !original) {
+                    alert('Invalid category name.');
+                    return;
+                }
+                if (newName === original) {
+                    hideModal(editCategoryModal, editCategoryModalContent);
+                    return;
+                }
+                try {
+                    saveEditCategoryBtn.disabled = true;
+                    console.log('Renaming category', original, '->', newName);
+                    const ok = await updateCategoryNameInFirestore(original, newName);
+                    console.log('Rename result:', ok);
+                    if (ok) {
+                        hideModal(editCategoryModal, editCategoryModalContent);
+                    }
+                } catch (err) {
+                    console.error('Error during category rename:', err);
+                    alert('Error renaming category. See console for details.');
+                } finally {
+                    saveEditCategoryBtn.disabled = false;
                 }
             });
 
