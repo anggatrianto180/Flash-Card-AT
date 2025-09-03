@@ -670,16 +670,37 @@
             const importCsvInput = document.getElementById('import-csv-input');
 
             // Start session button handler (restore functionality if missing)
-            startSessionBtn.addEventListener('click', () => {
+            startSessionBtn.addEventListener('click', async () => {
                 if (!currentCategoryName || !currentDeckName) {
                     alert('Please select a deck before starting a study session.');
                     return;
                 }
-                updateDeckLastStudied(currentCategoryName, currentDeckName);
+                // Prevent double-clicks / races: disable start button while we fetch
+                startSessionBtn.disabled = true;
+                startSessionBtn.classList.add('opacity-60', 'cursor-not-allowed');
+                // Selalu refresh data Firestore sebelum mulai sesi belajar
+                await refreshCategoryFromFirestore(currentCategoryName);
+                // Pastikan data deck sudah ada
+                const deckData = allCategories[currentCategoryName]?.[currentDeckName];
+                originalCards = Array.isArray(deckData?.cards) ? [...deckData.cards] : [];
+                currentCards = [...originalCards];
+                currentCardIndex = 0;
+                // Reset UI state
                 mainContent.classList.add('hidden');
                 mainHeader.classList.add('hidden');
                 studyFocusView.classList.remove('hidden');
+                studySessionView.classList.remove('hidden');
+                completionMessage.classList.add('hidden');
+                document.getElementById('flashcard-container').classList.remove('hidden');
+                flashcardInner.classList.remove('is-flipped');
+                actionButtons.classList.add('hidden');
+                // Update last studied
+                updateDeckLastStudied(currentCategoryName, currentDeckName);
+                // Render kartu
                 renderCard();
+                // Re-enable start button
+                startSessionBtn.disabled = false;
+                startSessionBtn.classList.remove('opacity-60', 'cursor-not-allowed');
             });
 
             // --- App State ---
@@ -822,11 +843,13 @@
 
             const renderCardList = (categoryName, deckName) => {
                 cardListContainer.innerHTML = '';
-                // If we're currently viewing this deck and currentCards is set (e.g. search results), prefer that
+                // If we're currently viewing this deck and there is an active search/filter, prefer currentCards
                 const isViewingThisDeck = currentCategoryName === categoryName && currentDeckName === deckName;
-                const cards = (isViewingThisDeck && Array.isArray(currentCards) && currentCards.length >= 0)
+                const hasActiveSearch = searchInput && searchInput.value && String(searchInput.value).trim() !== '';
+                const cardsFromStore = allCategories[categoryName]?.[deckName]?.cards || [];
+                const cards = (isViewingThisDeck && hasActiveSearch)
                     ? currentCards
-                    : (allCategories[categoryName]?.[deckName]?.cards || []);
+                    : cardsFromStore;
                 const statusColors = {
                     again: 'bg-red-400',
                     good: 'bg-blue-400',
@@ -930,7 +953,7 @@
                 }, 1500);
             }
 
-            function exitStudyAndReturnToCards() {
+        async function exitStudyAndReturnToCards() {
                 // hide study views
                 studyFocusView.classList.add('hidden');
                 studySessionView.classList.add('hidden');
@@ -939,12 +962,27 @@
                 mainHeader.classList.remove('hidden');
                 // navigate to the current deck's card list
                 if (currentCategoryName && currentDeckName) {
-                    cardReviewView.classList.remove('hidden');
-                    deckListView.classList.add('hidden');
-                    renderCardList(currentCategoryName, currentDeckName);
+                    // make sure we have live listener and fresh data
+                    listenToDecks(currentCategoryName);
+            // clear transient study state first
+            currentCards = [];
+            originalCards = [];
+            currentCardIndex = 0;
+            await awaitRefreshAndRender(currentCategoryName, currentDeckName);
                 }
             }
 
+            // helper used to await refresh then render card list
+            async function awaitRefreshAndRender(categoryName, deckName) {
+                try {
+                    await refreshCategoryFromFirestore(categoryName);
+                    cardReviewView.classList.remove('hidden');
+                    deckListView.classList.add('hidden');
+                    renderCardList(categoryName, deckName);
+                } catch (err) {
+                    console.error('Error refreshing and rendering after study exit:', err);
+                }
+            }
             const updateProgress = () => {
                 const total = originalCards.length;
                 const current = Math.min(currentCardIndex + 1, total);
@@ -972,20 +1010,25 @@
                 deckListView.classList.remove('hidden');
             };
 
-            const selectDeck = (categoryName, deckName) => {
+            const selectDeck = async (categoryName, deckName) => {
                 currentCategoryName = categoryName;
                 currentDeckName = deckName;
-                originalCards = [...allCategories[categoryName][deckName].cards];
+                // If the deck data isn't present yet (race with realtime listener), fetch it
+                if (!allCategories[categoryName] || !allCategories[categoryName][deckName]) {
+                    await refreshCategoryFromFirestore(categoryName);
+                }
+                const deckData = allCategories[categoryName]?.[deckName];
+                originalCards = Array.isArray(deckData?.cards) ? [...deckData.cards] : [];
                 currentCards = [...originalCards];
                 currentCardIndex = 0;
                 deckTitle.textContent = deckName;
                 searchInput.value = '';
-                
+
                 renderCardList(categoryName, deckName);
 
                 deckListView.classList.add('hidden');
                 cardReviewView.classList.remove('hidden');
-                
+
                 studyFocusView.classList.add('hidden');
                 startSessionContainer.classList.remove('hidden');
                 completionMessage.classList.add('hidden');
