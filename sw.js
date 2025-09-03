@@ -1,54 +1,91 @@
-// Nama cache
-const CACHE_NAME = 'flashcard-pro-cache-v1';
-// Daftar file yang akan di-cache
-const urlsToCache = [
+// Improved Service Worker for Flash-Card-AT
+const CACHE_VERSION = 'v2';
+const PRECACHE = `flashcard-pro-cache-${CACHE_VERSION}`;
+const RUNTIME = 'flashcard-runtime-cache';
+
+// Files to precache for offline fallback
+const PRECACHE_URLS = [
   '/',
-  '/index.html', // Asumsikan file utama Anda adalah index.html
+  '/index.html',
+  '/offline.html',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
-// Event listener untuk proses instalasi service worker
+// Install - pre-cache important resources
 self.addEventListener('install', event => {
-  // Tunggu hingga proses caching selesai
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
+    caches.open(PRECACHE)
+      .then(cache => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
   );
-  // Activate immediately
-  self.skipWaiting();
 });
 
-// Event listener untuk setiap permintaan (fetch) dari aplikasi
+// Activate - clean up old caches
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.map(key => {
+        if (key !== PRECACHE && key !== RUNTIME) {
+          return caches.delete(key);
+        }
+      })
+    ))
+    .then(() => self.clients.claim())
+  );
+});
+
+// Fetch handler
 self.addEventListener('fetch', event => {
-  // For navigation requests, return index.html (SPA fallback)
-  if (event.request.mode === 'navigate') {
+  const request = event.request;
+
+  // Always handle navigation requests (SPA) with network-first, then cache, then offline page
+  if (request.mode === 'navigate' || (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'))) {
     event.respondWith(
-      caches.match('/index.html').then(response => response || fetch('/index.html'))
+      fetch(request)
+        .then(response => {
+          // Put a copy of the response in the cache for offline use
+          const copy = response.clone();
+          caches.open(PRECACHE).then(cache => cache.put('/index.html', copy)).catch(()=>{});
+          return response;
+        })
+        .catch(() => caches.match('/index.html').then(r => r || caches.match('/offline.html')))
     );
     return;
   }
 
+  // For requests to our precached URLs (static assets), use cache-first strategy
+  const url = new URL(request.url);
+  const isPrecached = PRECACHE_URLS.some(u => {
+    try { return new URL(u, location).href === request.url; } catch(e) { return false; }
+  });
+
+  if (isPrecached) {
+    event.respondWith(
+      caches.match(request).then(cached => cached || fetch(request).then(networkRes => {
+        caches.open(PRECACHE).then(cache => cache.put(request, networkRes.clone()));
+        return networkRes;
+      }))
+    );
+    return;
+  }
+
+  // For other requests (APIs, images), use runtime cache with network-first fallback to cache
   event.respondWith(
-    // Coba cari respon dari cache terlebih dahulu
-    caches.match(event.request)
-      .then(response => {
-        // Jika ditemukan di cache, kembalikan dari cache
-        if (response) {
-          return response;
-        }
-        // Jika tidak, ambil dari jaringan
-        return fetch(event.request);
-      }
-    )
+    fetch(request).then(networkResponse => {
+      // save in runtime cache
+      return caches.open(RUNTIME).then(cache => {
+        try { cache.put(request, networkResponse.clone()); } catch(e) {}
+        return networkResponse;
+      });
+    }).catch(() => caches.match(request))
   );
 });
 
-// Claim clients when activated
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+// Allow the page to trigger skipWaiting via postMessage
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

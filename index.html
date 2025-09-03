@@ -815,18 +815,36 @@
             const renderDecks = (categoryName) => {
                 deckListContainer.innerHTML = '';
                 const decks = allCategories[categoryName] || {};
-                const sortedDeckNames = Object.keys(decks).sort();
-                if (sortedDeckNames.length === 0) {
+                // Sort decks so the ones that haven't been studied for the longest
+                // (null lastStudied or oldest timestamp) appear first.
+                const deckEntries = Object.keys(decks).map(name => ({ name, data: decks[name] }));
+                deckEntries.sort((a, b) => {
+                    const aTs = a.data.lastStudied ? a.data.lastStudied.toDate().getTime() : null;
+                    const bTs = b.data.lastStudied ? b.data.lastStudied.toDate().getTime() : null;
+                    // Null (never studied) should come first
+                    if (aTs === null && bTs === null) return a.name.localeCompare(b.name);
+                    if (aTs === null) return -1;
+                    if (bTs === null) return 1;
+                    // both present: older timestamp (smaller) comes first
+                    return aTs - bTs;
+                });
+                if (deckEntries.length === 0) {
                     deckListContainer.innerHTML = `<p class="text-gray-500 dark:text-gray-400 col-span-full text-center">No decks in this category yet.</p>`;
                 }
-                sortedDeckNames.forEach(deckName => {
-                    const deckData = decks[deckName];
-                    const cardCount = deckData.cards.length;
+                deckEntries.forEach(({ name: deckName, data: deckData }) => {
+                    const cardCount = Array.isArray(deckData.cards) ? deckData.cards.length : 0;
                     let lastStudiedHTML = '';
                     if (deckData.lastStudied) {
                         const date = deckData.lastStudied.toDate();
-                        const formattedDate = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-                        lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Last studied: ${formattedDate}</p>`;
+                        // Format using Indonesian locale and Jakarta timezone (WIB) with hour:minute
+                        const formatted = date.toLocaleString('id-ID', {
+                            day: 'numeric', month: 'short', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: false,
+                            timeZone: 'Asia/Jakarta'
+                        });
+                        lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Last studied: ${formatted} WIB</p>`;
+                    } else {
+                        lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Last studied: Never</p>`;
                     }
 
                     const deckCard = document.createElement('div');
@@ -897,12 +915,25 @@
                 cards.forEach(card => {
                     stats[card.status || 'new']++;
                 });
+
+                // Calculate score: easy=100, good=7.5, again=0 -> average per card
+                const weightedSum = (stats.easy * 100) + (stats.good * 7.5) + (stats.again * 0);
+                const rawScore = stats.total > 0 ? (weightedSum / stats.total) : 0;
+                // Format score to one decimal if needed
+                const score = Math.round(rawScore * 10) / 10;
+
+                // Color rules: <70 red, >=70 blue, >=95 green
+                let scoreClass = 'text-blue-500 dark:text-blue-300';
+                if (score < 70) scoreClass = 'text-red-500 dark:text-red-300';
+                if (score >= 95) scoreClass = 'text-green-500 dark:text-green-300';
+
                 deckStatsContainer.innerHTML = `
                     <div><p class="text-2xl font-bold text-gray-700 dark:text-gray-300">${stats.total}</p><p class="text-sm text-gray-500 dark:text-gray-400">Total</p></div>
                     <div><p class="text-2xl font-bold text-green-500">${stats.easy}</p><p class="text-sm text-gray-500 dark:text-gray-400">Easy</p></div>
                     <div><p class="text-2xl font-bold text-blue-500">${stats.good}</p><p class="text-sm text-gray-500 dark:text-gray-400">Good</p></div>
                     <div><p class="text-2xl font-bold text-red-500">${stats.again}</p><p class="text-sm text-gray-500 dark:text-gray-400">Again</p></div>
                     <div><p class="text-2xl font-bold text-gray-500">${stats.new}</p><p class="text-sm text-gray-500 dark:text-gray-400">New</p></div>
+                    <div><p class="text-2xl font-bold ${scoreClass}">${score}</p><p class="text-sm text-gray-500 dark:text-gray-400">Nilai</p></div>
                 `;
             };
 
@@ -941,6 +972,10 @@
                 completionMessage.classList.remove('hidden');
                 document.getElementById('flashcard-container').classList.add('hidden');
                 progressText.textContent = `Finished! ${originalCards.length} of ${originalCards.length} cards.`;
+                // Update deck lastStudied immediately when user finishes session
+                if (currentCategoryName && currentDeckName) {
+                    updateDeckLastStudied(currentCategoryName, currentDeckName);
+                }
                 // Offer user to go back to the card list automatically after short delay
                 const backBtn = document.getElementById('back-to-cards-after-study-btn');
                 if (backBtn) {
