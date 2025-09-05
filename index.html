@@ -584,6 +584,24 @@
             }
         }
 
+        // Helper: format relative time like '1 day 5 hours ago'
+        function formatRelativeTime(ms) {
+            if (!ms) return null;
+            const diff = Date.now() - ms;
+            if (diff < 0) return 'just now';
+            const sec = Math.floor(diff / 1000);
+            const min = Math.floor(sec / 60);
+            const hr = Math.floor(min / 60);
+            const day = Math.floor(hr / 24);
+            if (day > 0) {
+                const remHr = hr % 24;
+                return remHr > 0 ? `${day} day${day>1?'s':''} ${remHr} hour${remHr>1?'s':''} ago` : `${day} day${day>1?'s':''} ago`;
+            }
+            if (hr > 0) return `${hr} hour${hr>1?'s':''} ago`;
+            if (min > 0) return `${min} minute${min>1?'s':''} ago`;
+            return `${sec} second${sec>1?'s':''} ago`;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // --- DOM Elements ---
             const mainHeader = document.getElementById('main-header');
@@ -733,14 +751,36 @@
             }
 
             // --- Real-time Listeners ---
+            // keep per-category deck listeners so we can display accurate lastStudied
+            const categoryDeckUnsub = {};
             function listenToCategories() {
                 if (!userIsAuthenticated) return;
                 const categoriesCollectionRef = collection(db, 'categories');
                 onSnapshot(query(categoriesCollectionRef), (snapshot) => {
-                    allCategories = {};
+                    // initialize container
+                    const seen = {};
                     snapshot.forEach(doc => {
-                        allCategories[doc.id] = {};
+                        const id = doc.id;
+                        seen[id] = true;
+                        if (!allCategories[id]) allCategories[id] = {};
+                        // ensure we are listening to this category's decks
+                        if (!categoryDeckUnsub[id]) {
+                            const decksRef = collection(db, 'categories', id, 'decks');
+                            categoryDeckUnsub[id] = onSnapshot(query(decksRef), (deckSnapshot) => {
+                                const decks = {};
+                                deckSnapshot.forEach(d => decks[d.id] = d.data());
+                                allCategories[id] = decks;
+                                // re-render categories to update lastStudied and deck lists
+                                renderCategories();
+                                // if currently viewing this category, re-render decks
+                                if (!deckListView.classList.contains('hidden') && currentCategoryName === id) renderDecks(id);
+                            }, (err) => { console.error('Decks snapshot error for', id, err); });
+                        }
                     });
+
+                    // clean up listeners for categories that were removed
+                    Object.keys(categoryDeckUnsub).forEach(k => { if (!seen[k]) { try { categoryDeckUnsub[k](); } catch(e){} delete categoryDeckUnsub[k]; } });
+
                     renderCategories();
                 });
             }
@@ -781,23 +821,83 @@
             // --- RENDERING ---
             const renderCategories = () => {
                 categoryListContainer.innerHTML = '';
-                const sortedCategoryNames = Object.keys(allCategories).sort();
-                if (sortedCategoryNames.length === 0) {
+                // diagnostics accumulator to help debug why categories show 'Never'
+                const _categoryLastStudiedDiagnostics = [];
+
+                const entries = Object.keys(allCategories).map(catName => {
+                    const decks = allCategories[catName] || {};
+                    let latest = null;
+
+                    const extractMs = (val) => {
+                        if (!val) return null;
+                        if (typeof val.toDate === 'function') return val.toDate().getTime();
+                        if (typeof val.seconds === 'number') return (val.seconds * 1000) + Math.floor((val.nanoseconds || 0) / 1e6);
+                        if (typeof val === 'number') return val;
+                        if (typeof val === 'string') {
+                            const p = Date.parse(val);
+                            return isNaN(p) ? null : p;
+                        }
+                        return null;
+                    };
+
+                    const deckDetails = Object.keys(decks).map(deckName => {
+                        const d = decks[deckName];
+                        const raw = d ? d.lastStudied : undefined;
+                        const ms = extractMs(raw);
+                        if (ms !== null) {
+                            if (latest === null || ms > latest) latest = ms;
+                        }
+                        return { deckName, raw, ms };
+                    });
+
+                    _categoryLastStudiedDiagnostics.push({ categoryName: catName, decks: deckDetails, computedLatestMs: latest });
+
+                    return { name: catName, lastStudiedTs: latest };
+                });
+
+                // Emit debug information to on-screen panel and console for troubleshooting
+                try { debug('categoryLastStudiedDiagnostics', _categoryLastStudiedDiagnostics); } catch(e) { console.log('diag', _categoryLastStudiedDiagnostics); }
+
+                // Sort: never-studied (null) first; then older -> newer
+                entries.sort((a, b) => {
+                    if (a.lastStudiedTs === null && b.lastStudiedTs === null) return a.name.localeCompare(b.name);
+                    if (a.lastStudiedTs === null) return -1;
+                    if (b.lastStudiedTs === null) return 1;
+                    return a.lastStudiedTs - b.lastStudiedTs;
+                });
+
+                if (entries.length === 0) {
                     categoryListContainer.innerHTML = `<p class="text-gray-500 dark:text-gray-400 col-span-full text-center">No categories yet. Click the + button to create one.</p>`;
                 }
-                sortedCategoryNames.forEach(categoryName => {
+
+                entries.forEach(({ name: categoryName, lastStudiedTs }) => {
+                    // If this category has no decks loaded in memory yet, trigger a refresh so we can compute lastStudied
+                    if ((!allCategories[categoryName] || Object.keys(allCategories[categoryName]).length === 0) && userIsAuthenticated) {
+                        // fire-and-forget: refresh will re-render categories when complete
+                        refreshCategoryFromFirestore(categoryName).catch(() => {});
+                    }
                     const categoryCard = document.createElement('div');
-                    categoryCard.className = 'bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl dark:shadow-none dark:hover:bg-gray-700/50 transition-shadow cursor-pointer relative';
+                    categoryCard.className = 'bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm hover:shadow-lg dark:shadow-none dark:hover:bg-gray-700/50 transition-shadow cursor-pointer relative h-auto min-h-0 project-card';
                     categoryCard.dataset.categoryName = categoryName;
+
+                    let lastStudiedHTML = '';
+                    if (lastStudiedTs) {
+                        const rel = formatRelativeTime(lastStudiedTs);
+                        lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Last studied: ${rel}</p>`;
+                    } else {
+                        lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Last studied: Never</p>`;
+                    }
+
                     categoryCard.innerHTML = `
                         <div class="absolute top-2 right-2 flex gap-2">
                             <button data-category-name-edit="${categoryName}" class="edit-category-btn text-gray-400 hover:text-indigo-600"><i class="fas fa-pencil-alt"></i></button>
                             <button data-category-name-delete="${categoryName}" class="delete-category-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash-alt"></i></button>
                         </div>
                         <h3 class="text-xl font-semibold text-indigo-700 dark:text-indigo-400 pointer-events-none">${categoryName}</h3>
+                        ${lastStudiedHTML}
                     `;
                     categoryListContainer.appendChild(categoryCard);
-                    // Attach direct listener to the edit button so it reliably opens the edit modal
+
                     const editBtnElem = categoryCard.querySelector('.edit-category-btn');
                     if (editBtnElem) {
                         editBtnElem.addEventListener('click', (ev) => {
@@ -834,26 +934,53 @@
                 deckEntries.forEach(({ name: deckName, data: deckData }) => {
                     const cardCount = Array.isArray(deckData.cards) ? deckData.cards.length : 0;
                     let lastStudiedHTML = '';
-                    if (deckData.lastStudied) {
-                        const date = deckData.lastStudied.toDate();
-                        // Format using Indonesian locale and Jakarta timezone (WIB) with hour:minute
-                        const formatted = date.toLocaleString('id-ID', {
-                            day: 'numeric', month: 'short', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit', hour12: false,
-                            timeZone: 'Asia/Jakarta'
-                        });
-                        lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Last studied: ${formatted} WIB</p>`;
+                    // extract ms from possible shapes
+                    const extractDeckMs = (val) => {
+                        if (!val) return null;
+                        if (typeof val.toDate === 'function') return val.toDate().getTime();
+                        if (typeof val.seconds === 'number') return (val.seconds * 1000) + Math.floor((val.nanoseconds || 0) / 1e6);
+                        if (typeof val === 'number') return val;
+                        if (typeof val === 'string') {
+                            const p = Date.parse(val);
+                            return isNaN(p) ? null : p;
+                        }
+                        return null;
+                    };
+                    const deckMs = extractDeckMs(deckData.lastStudied);
+                    if (deckMs) {
+                        lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Last studied: ${formatRelativeTime(deckMs)}</p>`;
                     } else {
                         lastStudiedHTML = `<p class="text-xs text-gray-400 mt-2">Last studied: Never</p>`;
                     }
 
                     const deckCard = document.createElement('div');
-                    deckCard.className = 'bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl dark:shadow-none dark:hover:bg-gray-700/50 transition-shadow cursor-pointer';
+                    deckCard.className = 'bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm hover:shadow-lg dark:shadow-none dark:hover:bg-gray-700/50 transition-shadow cursor-pointer h-auto min-h-0 task-card';
                     deckCard.dataset.deckName = deckName;
+
+                    // compute per-deck stats (easy/good/again/new) and weighted score
+                    const cardsArr = Array.isArray(deckData.cards) ? deckData.cards : [];
+                    const stats = { easy: 0, good: 0, again: 0, new: 0, total: cardsArr.length };
+                    cardsArr.forEach(c => { stats[c.status || 'new'] = (stats[c.status || 'new'] || 0) + 1; });
+                    const weightedSum = (stats.easy * 100) + (stats.good * 7.5) + (stats.again * 0);
+                    const rawScore = stats.total > 0 ? (weightedSum / stats.total) : 0;
+                    const score = Math.round(rawScore * 10) / 10;
+                    let scoreClass = 'text-blue-500 dark:text-blue-300';
+                    if (score < 70) scoreClass = 'text-red-500 dark:text-red-300';
+                    if (score >= 95) scoreClass = 'text-green-500 dark:text-green-300';
+
                     deckCard.innerHTML = `
-                        <h3 class="text-xl font-semibold text-indigo-700 dark:text-indigo-400 pointer-events-none">${deckName}</h3>
-                        <p class="text-gray-500 dark:text-gray-400 mt-2 pointer-events-none">${cardCount} cards</p>
-                        ${lastStudiedHTML}
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-lg font-semibold text-indigo-700 dark:text-indigo-400 pointer-events-none">${deckName}</h3>
+                                <p class="text-gray-500 dark:text-gray-400 mt-1 pointer-events-none">${cardCount} cards</p>
+                                ${lastStudiedHTML}
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm text-gray-400">Score</p>
+                                <p class="text-2xl font-bold ${scoreClass}">${score}</p>
+                            </div>
+                        </div>
+                        <!-- per-deck breakdown removed: only score is shown -->
                     `;
                     deckListContainer.appendChild(deckCard);
                 });
@@ -1023,7 +1150,7 @@
                 const current = Math.min(currentCardIndex + 1, total);
                 if (total === 0) {
                     progressText.textContent = "No cards in this deck.";
-                    progressBar.style.width = '0%';
+                    progressBar.style.width = '0';
                     return;
                 }
                 document.getElementById('flashcard-container').classList.remove('hidden');
