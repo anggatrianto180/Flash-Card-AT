@@ -91,6 +91,15 @@
         .modal-content {
              transition: transform 0.25s ease;
         }
+        /* Card text wrapper for show more/less behavior */
+        .card-text-wrapper {
+            transition: max-height 0.25s ease;
+        }
+        .show-more-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
     </style>
     <script>
         // Apply dark mode immediately from localStorage to prevent flashing
@@ -248,15 +257,16 @@
                 <div id="flashcard-container" class="perspective-1000 w-full h-80 mb-6">
                     <div id="flashcard-inner" class="card-inner relative w-full h-full">
                         <div id="card-front" class="card-face bg-white dark:bg-gray-800 rounded-xl shadow-lg flex items-center justify-center p-6 text-center">
-                            <p class="text-3xl font-medium"></p>
+                            <div class="card-text-wrapper w-full overflow-y-auto" style="max-height:140px;">
+                                <p class="card-text text-3xl font-medium"></p>
+                            </div>
+                            <button type="button" class="show-more-btn mt-3 text-sm text-indigo-600 dark:text-indigo-300" style="display:none">Show more</button>
                         </div>
                         <div id="card-back" class="card-back card-face bg-indigo-500 dark:bg-indigo-600 text-white rounded-xl shadow-lg flex flex-col items-center justify-center p-6 text-center">
-                            <p class="text-2xl mb-4"></p>
-                            <button id="generate-example-btn" class="bg-white text-indigo-600 font-semibold px-4 py-2 rounded-lg hover:bg-gray-200">
-                                <span id="gen-example-text">✨ Generate Example</span>
-                                <div id="gen-example-spinner" class="hidden animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-indigo-600 ml-2"></div>
-                            </button>
-                            <div id="example-sentence-container" class="mt-4 text-left text-sm w-full bg-indigo-600/80 p-3 rounded-lg hidden"></div>
+                            <div class="card-text-wrapper w-full overflow-y-auto" style="max-height:140px;">
+                                <p class="card-text text-2xl mb-4"></p>
+                            </div>
+                            <button type="button" class="show-more-btn mt-3 text-sm text-white" style="display:none">Show more</button>
                         </div>
                     </div>
                 </div>
@@ -616,8 +626,13 @@
             const backToCategoriesBtn = document.getElementById('back-to-categories-btn');
             const backToDecksBtn = document.getElementById('back-to-decks-btn');
             const flashcardInner = document.getElementById('flashcard-inner');
-            const cardFrontText = document.querySelector('#card-front p');
-            const cardBackText = document.querySelector('#card-back p');
+            // New: wrappers and toggle buttons for show more/less
+            const cardFrontWrapper = document.querySelector('#card-front .card-text-wrapper');
+            const cardBackWrapper = document.querySelector('#card-back .card-text-wrapper');
+            const cardFrontText = document.querySelector('#card-front .card-text');
+            const cardBackText = document.querySelector('#card-back .card-text');
+            const cardFrontToggle = document.querySelector('#card-front .show-more-btn');
+            const cardBackToggle = document.querySelector('#card-back .show-more-btn');
             const actionButtons = document.getElementById('action-buttons');
             const statusButtons = document.querySelectorAll('.status-btn');
             const shuffleBtn = document.getElementById('shuffle-btn');
@@ -626,10 +641,7 @@
             const progressBar = document.getElementById('card-progress-bar');
             const completionMessage = document.getElementById('completion-message');
             const restartDeckBtn = document.getElementById('restart-deck-btn');
-            const generateExampleBtn = document.getElementById('generate-example-btn');
-            const genExampleText = document.getElementById('gen-example-text');
-            const genExampleSpinner = document.getElementById('gen-example-spinner');
-            const exampleSentenceContainer = document.getElementById('example-sentence-container');
+            // generate example feature removed
             // (legacy inline add-card elements removed) new card flow now uses modal inputs below
             const openAddCardModalBtn = document.getElementById('open-add-card-modal-btn');
             const addCardModal = document.getElementById('add-card-modal');
@@ -729,26 +741,7 @@
             let confirmAction = null;
 
             // --- Gemini API Configuration ---
-            const API_KEY = ""; // Leave empty
-            const API_URL_GENERATE = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
-            
-            async function generateExampleSentence(front, back) {
-                const prompt = `Berikan satu contoh kalimat singkat dalam bahasa Inggris menggunakan kata "${front}" (yang artinya "${back}"). Sertakan juga terjemahan kalimatnya dalam bahasa Indonesia di baris baru. Format: Kalimat Inggris\nTerjemahan Indonesia`;
-                const payload = { contents: [{ parts: [{ text: prompt }] }] };
-                try {
-                    const response = await fetch(API_URL_GENERATE, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    const result = await response.json();
-                    return result.candidates[0].content.parts[0].text;
-                } catch (error) {
-                    console.error("Error generating example sentence:", error);
-                    return "Failed to generate example.";
-                }
-            }
+            // Generative example API removed from the build.
 
             // --- Real-time Listeners ---
             // keep per-category deck listeners so we can display accurate lastStudied
@@ -1069,8 +1062,7 @@
                 flashcardInner.classList.remove('is-flipped');
                 actionButtons.classList.add('hidden');
                 completionMessage.classList.add('hidden');
-                exampleSentenceContainer.classList.add('hidden');
-                exampleSentenceContainer.innerHTML = '';
+                // example sentence feature removed
                 if (currentCards.length === 0) {
                     cardFrontText.textContent = "This deck is empty. Add a new card above.";
                     cardBackText.textContent = "";
@@ -1091,8 +1083,75 @@
                     .replace(/'/g, '&#39;');
                 const nl2br = (s) => escapeHtml(s).replace(/\r?\n/g, '<br>');
 
+                // Put escaped HTML into the card text elements
                 cardFrontText.innerHTML = nl2br(card.front || '');
                 cardBackText.innerHTML = nl2br(card.back || '');
+
+                // Helper to detect overflow (content taller than wrapper)
+                const isOverflowing = (wrapperEl) => {
+                    if (!wrapperEl) return false;
+                    return wrapperEl.scrollHeight > wrapperEl.clientHeight + 1; // allow 1px tolerance
+                };
+
+                // Reset toggles to collapsed state
+        const collapseWrapper = (wrapperEl, toggleBtn, collapsedMaxHeight) => {
+                    if (!wrapperEl) return;
+                    wrapperEl.style.maxHeight = collapsedMaxHeight + 'px';
+                    if (toggleBtn) {
+                        toggleBtn.textContent = 'Show more';
+            toggleBtn.style.display = '';
+                        toggleBtn.dataset.expanded = 'false';
+                    }
+                };
+
+                const expandWrapper = (wrapperEl, toggleBtn) => {
+                    if (!wrapperEl) return;
+                    wrapperEl.style.maxHeight = wrapperEl.scrollHeight + 'px';
+                    if (toggleBtn) {
+                        toggleBtn.textContent = 'Show less';
+                        toggleBtn.dataset.expanded = 'true';
+                    }
+                };
+
+                // Apply collapsed/expanded state based on overflow
+                const COLLAPSED_HEIGHT = 140; // px, matches HTML inline style
+                // Front
+                if (isOverflowing(cardFrontWrapper)) {
+                    collapseWrapper(cardFrontWrapper, cardFrontToggle, COLLAPSED_HEIGHT);
+                } else {
+                    if (cardFrontToggle) cardFrontToggle.style.display = 'none';
+                    if (cardFrontWrapper) cardFrontWrapper.style.maxHeight = 'none';
+                }
+                // Back
+                if (isOverflowing(cardBackWrapper)) {
+                    collapseWrapper(cardBackWrapper, cardBackToggle, COLLAPSED_HEIGHT);
+                } else {
+                    if (cardBackToggle) cardBackToggle.style.display = 'none';
+                    if (cardBackWrapper) cardBackWrapper.style.maxHeight = 'none';
+                }
+
+                // Attach toggle handlers (idempotent: remove previous to avoid dupes)
+                const attachToggle = (btn, wrapper, collapsedH) => {
+                    if (!btn || !wrapper) return;
+                    // clone button to remove previous listeners but preserve inline style/display
+                    const cloned = btn.cloneNode(true);
+                    cloned.style.display = btn.style.display || '';
+                    btn.replaceWith(cloned);
+                    const newBtn = wrapper.parentElement.querySelector('.show-more-btn');
+                    newBtn.addEventListener('click', (e) => {
+                        const expanded = newBtn.dataset.expanded === 'true';
+                        if (expanded) {
+                            // collapse
+                            collapseWrapper(wrapper, newBtn, collapsedH);
+                        } else {
+                            // expand
+                            expandWrapper(wrapper, newBtn);
+                        }
+                    });
+                };
+
+                attachToggle(cardFrontToggle, cardFrontWrapper, COLLAPSED_HEIGHT);
+                attachToggle(cardBackToggle, cardBackWrapper, COLLAPSED_HEIGHT);
             };
             
             const showCompletionMessage = () => {
@@ -1437,19 +1496,7 @@
                 URL.revokeObjectURL(url);
             });
 
-            generateExampleBtn.addEventListener('click', async () => {
-                if (currentCards.length === 0) return;
-                const card = currentCards[currentCardIndex];
-                genExampleSpinner.classList.remove('hidden');
-                genExampleText.textContent = 'Generating...';
-                generateExampleBtn.disabled = true;
-                const example = await generateExampleSentence(card.front, card.back);
-                exampleSentenceContainer.innerHTML = String(example).replace(/\n/g, '<br>');
-                exampleSentenceContainer.classList.remove('hidden');
-                genExampleSpinner.classList.add('hidden');
-                genExampleText.textContent = '✨ Generate Example';
-                generateExampleBtn.disabled = false;
-            });
+            // generate example feature removed
 
             // Restore/ensure shuffle, exit focus, and search input listeners
             if (shuffleBtn) shuffleBtn.addEventListener('click', shuffleCards);
