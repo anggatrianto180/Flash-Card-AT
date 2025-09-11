@@ -256,18 +256,44 @@
 
                 <div id="flashcard-container" class="perspective-1000 w-full h-80 mb-6">
                     <div id="flashcard-inner" class="card-inner relative w-full h-full">
-                        <div id="card-front" class="card-face bg-white dark:bg-gray-800 rounded-xl shadow-lg flex items-center justify-center p-6 text-center">
-                            <div class="card-text-wrapper w-full overflow-y-auto" style="max-height:140px;">
-                                <p class="card-text text-3xl font-medium"></p>
+                        <div id="card-front" class="card-face bg-white dark:bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center p-6 text-center">
+                            <div class="card-text-wrapper w-full flex-1 flex items-center justify-center overflow-y-auto" style="max-height:calc(100% - 56px);">
+                                <p class="card-text text-3xl font-medium text-center"></p>
                             </div>
-                            <button type="button" class="show-more-btn mt-3 text-sm text-indigo-600 dark:text-indigo-300" style="display:none">Show more</button>
+                            <div class="w-full flex items-center justify-center gap-3 mt-4">
+                                <button type="button" class="show-more-btn mt-0 text-sm text-indigo-600 dark:text-indigo-300" style="display:none">Show more</button>
+                            </div>
                         </div>
                         <div id="card-back" class="card-back card-face bg-indigo-500 dark:bg-indigo-600 text-white rounded-xl shadow-lg flex flex-col items-center justify-center p-6 text-center">
                             <div class="card-text-wrapper w-full overflow-y-auto" style="max-height:140px;">
-                                <p class="card-text text-2xl mb-4"></p>
+                                <p class="card-text text-2xl mb-4 text-center"></p>
                             </div>
                             <button type="button" class="show-more-btn mt-3 text-sm text-white" style="display:none">Show more</button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- TTS controls placed below the flashcard (outside the card) -->
+                <div id="tts-controls" class="w-full mb-4 hidden">
+                    <div class="w-full flex flex-col sm:flex-row items-center justify-center gap-2">
+                        <select id="voice-select" class="text-sm rounded-md border px-2 py-1 w-full sm:w-56 appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600">
+                            <option value="">Default voice</option>
+                        </select>
+                        <select id="speed-select" class="text-sm rounded-md border px-2 py-1 w-full sm:w-32 appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600">
+                            <option value="0.75">0.75x</option>
+                            <option value="1.0" selected>1.0x</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2.0">2.0x</option>
+                        </select>
+                    </div>
+                    <div class="w-full flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
+                        <button id="play-audio-btn" type="button" class="w-full sm:w-auto text-sm px-3 py-2 rounded-md bg-indigo-50 dark:bg-indigo-700 text-indigo-700 dark:text-white border border-indigo-200 dark:border-indigo-600" style="display:none">
+                            <i class="fas fa-play mr-2"></i>Play
+                        </button>
+                        <button id="stop-audio-btn" type="button" class="w-full sm:w-auto text-sm px-3 py-2 rounded-md bg-gray-100 dark:bg-gray-600 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-500" style="display:none">
+                            <i class="fas fa-stop mr-2"></i>Stop
+                        </button>
                     </div>
                 </div>
 
@@ -633,6 +659,11 @@
             const cardBackText = document.querySelector('#card-back .card-text');
             const cardFrontToggle = document.querySelector('#card-front .show-more-btn');
             const cardBackToggle = document.querySelector('#card-back .show-more-btn');
+            const ttsControls = document.getElementById('tts-controls');
+            const playAudioBtn = document.getElementById('play-audio-btn');
+            const stopAudioBtn = document.getElementById('stop-audio-btn');
+            const voiceSelect = document.getElementById('voice-select');
+            const speedSelect = document.getElementById('speed-select');
             const actionButtons = document.getElementById('action-buttons');
             const statusButtons = document.querySelectorAll('.status-btn');
             const shuffleBtn = document.getElementById('shuffle-btn');
@@ -728,6 +759,53 @@
                 updateDeckLastStudied(currentCategoryName, currentDeckName);
                 // Render kartu
                 renderCard();
+                // Wire audio buttons (idempotent)
+                if (playAudioBtn) {
+                    playAudioBtn.addEventListener('click', () => {
+                        const text = currentCards[currentCardIndex]?.front || '';
+                        if (text) speakText(text, 'en-US');
+                    });
+                }
+                if (stopAudioBtn) {
+                    stopAudioBtn.addEventListener('click', () => stopSpeaking());
+                }
+                // Populate voice list (may be async on some browsers)
+                const populateVoices = () => {
+                    if (!voiceSelect || !speechSynthesis || !speechSynthesis.getVoices) return;
+                    const voices = speechSynthesis.getVoices();
+                    // clear existing options except the first default
+                    const firstOpt = voiceSelect.querySelector('option');
+                    voiceSelect.innerHTML = '';
+                    if (firstOpt) voiceSelect.appendChild(firstOpt);
+                    voices.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.name || v.voiceURI;
+                        opt.textContent = `${v.name} ${v.lang ? '('+v.lang+')' : ''}`;
+                        voiceSelect.appendChild(opt);
+                    });
+                    // restore saved selection
+                    try {
+                        const saved = localStorage.getItem('tts.voice');
+                        if (saved) voiceSelect.value = saved;
+                    } catch (e) {}
+                };
+                populateVoices();
+                if (speechSynthesis && 'onvoiceschanged' in speechSynthesis) {
+                    speechSynthesis.onvoiceschanged = populateVoices;
+                }
+
+                if (voiceSelect) {
+                    voiceSelect.addEventListener('change', () => {
+                        try { localStorage.setItem('tts.voice', voiceSelect.value); } catch(e){}
+                    });
+                }
+                if (speedSelect) {
+                    speedSelect.addEventListener('change', () => {
+                        try { localStorage.setItem('tts.speed', speedSelect.value); } catch(e){}
+                    });
+                    // restore saved speed
+                    try { const sv = localStorage.getItem('tts.speed'); if (sv) speedSelect.value = sv; } catch(e){}
+                }
                 // Re-enable start button
                 startSessionBtn.disabled = false;
                 startSessionBtn.classList.remove('opacity-60', 'cursor-not-allowed');
@@ -1062,6 +1140,8 @@
                 flashcardInner.classList.remove('is-flipped');
                 actionButtons.classList.add('hidden');
                 completionMessage.classList.add('hidden');
+                // show tts controls when rendering front
+                if (ttsControls) ttsControls.classList.remove('hidden');
                 // example sentence feature removed
                 if (currentCards.length === 0) {
                     cardFrontText.textContent = "This deck is empty. Add a new card above.";
@@ -1122,6 +1202,16 @@
                     if (cardFrontToggle) cardFrontToggle.style.display = 'none';
                     if (cardFrontWrapper) cardFrontWrapper.style.maxHeight = 'none';
                 }
+                // Audio buttons for front text (controls live in #tts-controls)
+                if (playAudioBtn) {
+                    if ((card.front || '').trim().length > 0) {
+                        playAudioBtn.style.display = '';
+                        stopAudioBtn && (stopAudioBtn.style.display = 'none');
+                    } else {
+                        playAudioBtn.style.display = 'none';
+                        stopAudioBtn && (stopAudioBtn.style.display = 'none');
+                    }
+                }
                 // Back
                 if (isOverflowing(cardBackWrapper)) {
                     collapseWrapper(cardBackWrapper, cardBackToggle, COLLAPSED_HEIGHT);
@@ -1157,6 +1247,7 @@
             const showCompletionMessage = () => {
                 completionMessage.classList.remove('hidden');
                 document.getElementById('flashcard-container').classList.add('hidden');
+                if (ttsControls) ttsControls.classList.add('hidden');
                 progressText.textContent = `Finished! ${originalCards.length} of ${originalCards.length} cards.`;
                 // Update deck lastStudied immediately when user finishes session
                 if (currentCategoryName && currentDeckName) {
@@ -1265,6 +1356,11 @@
                 if (currentCards.length > 0 && currentCardIndex < currentCards.length) {
                     flashcardInner.classList.toggle('is-flipped');
                     actionButtons.classList.toggle('hidden');
+                    // hide tts controls when showing back (action buttons visible)
+                    if (ttsControls) {
+                        const showingBack = flashcardInner.classList.contains('is-flipped');
+                        if (showingBack) ttsControls.classList.add('hidden'); else ttsControls.classList.remove('hidden');
+                    }
                 }
             };
             
@@ -1279,14 +1375,67 @@
                     flashcardInner.classList.remove('is-flipped');
                     actionButtons.classList.add('hidden');
                     setTimeout(() => {
+                        stopSpeaking();
                         currentCardIndex++;
                         renderCard();
                     }, 300); 
                 } else {
+                    stopSpeaking();
                     currentCardIndex++;
                     renderCard();
                 }
             };
+
+            // --- Text-to-Speech Helpers (Web Speech API) ---
+            let _speechUtterance = null;
+            function speakText(text, lang = 'en-US') {
+                try {
+                    stopSpeaking();
+                    if (!('speechSynthesis' in window)) return;
+                    const utter = new SpeechSynthesisUtterance(String(text));
+                    utter.lang = lang;
+                    // use selected speed if available
+                    try {
+                        const rate = parseFloat(speedSelect?.value || '1.0');
+                        utter.rate = isNaN(rate) ? 1.0 : rate;
+                    } catch (e) { utter.rate = 1.0; }
+                    utter.pitch = 1.0;
+                    _speechUtterance = utter;
+                    // select voice by name if user selected one
+                    try {
+                        const selectedVoice = voiceSelect?.value;
+                        if (selectedVoice && speechSynthesis.getVoices) {
+                            const all = speechSynthesis.getVoices();
+                            const found = all.find(v => v.name === selectedVoice || v.voiceURI === selectedVoice);
+                            if (found) utter.voice = found;
+                        }
+                    } catch (e) {
+                        // ignore voice selection errors
+                    }
+                    // update UI
+                    try { if (playAudioBtn) { playAudioBtn.style.display = 'none'; } } catch(e){}
+                    try { if (stopAudioBtn) { stopAudioBtn.style.display = ''; } } catch(e){}
+                    utter.onend = () => {
+                        try { if (playAudioBtn) { playAudioBtn.style.display = ''; } } catch(e){}
+                        try { if (stopAudioBtn) { stopAudioBtn.style.display = 'none'; } } catch(e){}
+                    };
+                    window.speechSynthesis.speak(utter);
+                } catch (e) {
+                    console.error('TTS error:', e);
+                }
+            }
+
+            function stopSpeaking() {
+                try {
+                    if (!('speechSynthesis' in window)) return;
+                    window.speechSynthesis.cancel();
+                    _speechUtterance = null;
+                    try { if (playAudioBtn) { playAudioBtn.style.display = ''; } } catch(e){}
+                    try { if (stopAudioBtn) { stopAudioBtn.style.display = 'none'; } } catch(e){}
+                } catch (e) {
+                    console.error('stopSpeech error:', e);
+                }
+            }
             
             const shuffleCards = () => {
                 for (let i = currentCards.length - 1; i > 0; i--) {
